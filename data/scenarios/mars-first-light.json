@@ -1,0 +1,31 @@
+{
+  "id": "mars-first-light",
+  "destination": "Mars",
+  "durationDays": 7,
+  "dataNote": "All values and effects in this scenario are illustrative game-balancing values, not NASA operational values or forecasts.",
+  "initialResources": {"power": 56, "oxygen": 82, "water": 74, "food": 78, "crewWellbeing": 88, "habitatIntegrity": 92, "radiationRisk": 8, "scienceProgress": 0},
+  "buildings": [
+    {"id": "habitat", "name": "Habitat", "x": 0.5, "y": 0.53, "kind": "habitat", "status": "online"},
+    {"id": "solar-array", "name": "Solar array", "x": 0.78, "y": 0.65, "kind": "solar", "status": "standby"},
+    {"id": "greenhouse", "name": "Greenhouse", "x": 0.25, "y": 0.69, "kind": "greenhouse", "status": "standby"},
+    {"id": "rover", "name": "Science rover", "x": 0.18, "y": 0.42, "kind": "rover", "status": "standby"},
+    {"id": "life-support", "name": "Life-support module", "x": 0.48, "y": 0.78, "kind": "lifeSupport", "status": "standby"},
+    {"id": "storm-shelter", "name": "Storm shelter", "x": 0.72, "y": 0.43, "kind": "shelter", "status": "standby"}
+  ],
+  "firstActions": [
+    {"id": "activate-solar-array", "title": "Bring the solar array online", "detail": "Restore the outpost’s power buffer before the crew starts work.", "log": "The solar array is online. The outpost has more stored power for the next sol.", "effects": {"power": 18}, "buildingId": "solar-array", "buildingStatus": "online"},
+    {"id": "run-habitat-diagnostics", "title": "Run habitat diagnostics", "detail": "Spend power now to check the habitat before the crew begins work.", "log": "Diagnostics found a small maintenance issue. The crew repaired it before it grew.", "effects": {"power": -8, "habitatIntegrity": 8}, "buildingId": "habitat", "buildingStatus": "online"}
+  ],
+  "dailyActions": [
+    {"id": "build-greenhouse", "title": "Bring the greenhouse online", "detail": "Spend power and water now; the first food gain arrives next sol.", "log": "The greenhouse is built. It will start adding food next sol while using power and water.", "effects": {"power": -12, "water": -4}, "buildingId": "greenhouse", "buildingStatus": "online", "activationDelayDays": 1, "requiresBuilding": {"id": "greenhouse", "status": "standby"}, "minResource": {"key": "power", "value": 12}, "minResourceSecondary": {"key": "water", "value": 4}},
+    {"id": "repair-habitat", "title": "Repair the habitat", "detail": "Use power and crew time to restore habitat condition.", "log": "The crew completed habitat maintenance before the next sol.", "effects": {"power": -6, "habitatIntegrity": 12}, "buildingId": "habitat", "buildingStatus": "online", "minResource": {"key": "power", "value": 6}, "maxResource": {"key": "habitatIntegrity", "value": 99}},
+    {"id": "activate-life-support", "title": "Activate life support", "detail": "Spend power to recycle more water and support the oxygen reserve on later sols.", "log": "The life-support module is online. It improves modeled oxygen and water recovery but draws power each sol.", "effects": {"power": -16}, "buildingId": "life-support", "buildingStatus": "online", "requiresBuilding": {"id": "life-support", "status": "standby"}, "minResource": {"key": "power", "value": 16}},
+    {"id": "build-storm-shelter", "title": "Prepare the storm shelter", "detail": "Spend power to lower modeled exposure risk during future surface work.", "log": "The shelter is ready. Its modeled protection lowers risk over future sols.", "effects": {"power": -10}, "buildingId": "storm-shelter", "buildingStatus": "online", "requiresBuilding": {"id": "storm-shelter", "status": "standby"}, "minResource": {"key": "power", "value": 12}},
+    {"id": "prioritize-life-support", "title": "Prioritize life support", "detail": "Reserve more modeled power for the habitat systems this sol.", "log": "Power priority set to life support. Optional work will use less energy.", "effects": {}, "setPowerMode": "life-support"},
+    {"id": "prioritize-research", "title": "Prioritize research", "detail": "Use more modeled power for science and accept a smaller reserve.", "log": "Power priority set to research. The crew can make more science progress this sol.", "effects": {}, "setPowerMode": "research"},
+    {"id": "send-rover", "title": "Send the science rover", "detail": "Spend power and water to investigate the nearby soil site; surface work raises modeled exposure risk.", "log": "The rover completed a short survey and returned a useful soil reading. The surface trip raised the game’s exposure-risk meter.", "effects": {"power": -12, "water": -5, "crewWellbeing": -2, "scienceProgress": 20, "radiationRisk": 18}, "buildingId": "rover", "buildingStatus": "online", "requiresBuilding": {"id": "solar-array", "status": "online"}, "minResource": {"key": "power", "value": 15}},
+    {"id": "crew-rest", "title": "Schedule crew rest", "detail": "Use food and mission time to help the crew recover.", "log": "The crew took a rest period and recovered some wellbeing.", "effects": {"food": -3, "crewWellbeing": 9}, "minResource": {"key": "food", "value": 3}},
+    {"id": "conserve-and-observe", "title": "Conserve power and observe", "detail": "Keep optional systems quiet and let the crew review the outpost.", "log": "The crew conserved supplies and checked the outpost systems.", "effects": {"crewWellbeing": 1}}
+  ],
+  "dailyResolution": {"powerBase": -4, "solarGeneration": 9, "lifeSupportPriorityPower": -3, "researchPriorityPower": -5, "lifeSupportPowerUse": -3, "greenhousePowerUse": -2, "shelterPowerUse": -1, "oxygen": -2, "oxygenLowPower": -5, "minimumPowerForOxygen": 8, "lifeSupportOxygenRecovery": 4, "lifeSupportPriorityOxygen": 2, "water": -2, "lifeSupportWaterRecovery": 1, "greenhouseWaterUse": -1, "food": -2, "greenhouseFood": 4, "crewWellbeing": -1, "crewRiskPenaltyThreshold": 40, "crewRiskPenalty": -1, "habitatIntegrity": -1, "radiationRiskDaily": 2, "shelterRiskReduction": 8, "researchScience": 4}
+}

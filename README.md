@@ -14,20 +14,29 @@ Open this folder in VS Code, press **F5**, and choose **OUTPOST ZERO — Run gam
 
 To make a production build, run `npm run build`.
 
+## Run the mission API
+
+1. From the repository root, create and activate a Python virtual environment.
+2. Install `backend/requirements.txt`.
+3. Run `uvicorn backend.app.main:app --reload` (API at `http://127.0.0.1:8000`).
+4. Copy `.env.example` to `.env.local` to connect the Vite app to the local API. Without that setting, the game uses its deterministic local adapter.
+
+The API stores sessions in memory for the local demo. Restarting the API clears server sessions; browser saves still provide an offline fallback.
+
 ## Current playable slice
 
-Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission-ready handoff. The callsign and mission save persist in the browser. This opening prototype is Mars-focused; Moon selection, the interactive outpost, simulation, and debrief are planned next. The current mock mission is 30 sols. Crew and mission data are mock data; the sound control is visual only.
+Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission-ready handoff → first-sol outpost choice. The callsign and mission save persist in the browser. The seven-sol Mars mission has six selectable structures and connected power, oxygen, water, food, habitat, crew, exposure-risk, and science tracks. Phase 3 adds delayed greenhouse production, life-support recovery, and shelter protection, with all values clearly labeled as game values. Configure VITE_OUTPOST_API_URL to use FastAPI; without it the browser adapter runs the same simplified rules locally. Authored event branches, lunar mode, and final debrief remain future phases. Crew/dialogue data is mock content; sound control remains visual only.
 
 ## Planned game loop
 
-Briefing → choose a world → prepare the outpost → play a mission day → respond to an event → see consequences → debrief.
+Briefing → prepare the Mars outpost → play a mission sol → respond to an event → see consequences → debrief. The first-sol playable slice is the integration milestone; longer campaigns and Moon mode follow after the core loop is stable.
 
 ## Stack
 
 - React + Vite for menus, story, HUD, and mission flow.
 - Phaser 3 for the interactive outpost world.
-- FastAPI and Python for mission state and simulation rules.
-- Shared JSON contracts for integration.
+- FastAPI and Python are the target for authoritative mission state and simulation rules; Phase 1 uses an interchangeable local browser adapter while the service is built.
+- Shared JSON contracts and versioned scenario data for integration.
 
 ## Work split and ownership
 
@@ -41,7 +50,9 @@ For parallel work, use separate `frontend-experience` and `gameplay-simulation` 
 
 ## MVP direction
 
-- Moon and Mars destinations, with a short mission suitable for a demo.
-- Power, oxygen, water, food, crew health, and radiation risk.
+- Mars first: a 7–10-sol mission suitable for a demo. Moon mode is an expansion after the Mars loop works.
+- Power, oxygen, water, food, crew wellbeing, habitat condition, abstract exposure risk, and science progress.
 - Five or six interactive structures and 8–10 authored events.
 - Explain consequences clearly and distinguish NASA observations, derived calculations, and fictional training scenarios.
+
+See [docs/PERSON_B_WORK_PLAN.md](docs/PERSON_B_WORK_PLAN.md) for the phased Person B scope and completion criteria.

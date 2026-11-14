@@ -5,10 +5,25 @@ export const GAME_CONTRACT_VERSION = '1.0.0';
 /** PlayerProfile: { id, callsign, avatarId, createdAt } */
 /** MissionBrief: { id, destination, durationDays, objectives[], crew[] } */
 /** MissionStartRequest: { profile: PlayerProfile, missionId, contractVersion } */
-/** MissionSnapshot (Person 2 response): { missionId, day, resources, buildings, events, status } */
+/** MissionActionRequest: { sessionId, expectedDay, actionId } */
+/** MissionSnapshot also carries availableActions[], powerMode, seed, scenarioId, and lastOutcome. */
+export const MISSION_ACTIONS = {
+  ACTIVATE_SOLAR_ARRAY: 'activate-solar-array',
+  RUN_HABITAT_DIAGNOSTICS: 'run-habitat-diagnostics',
+  BUILD_GREENHOUSE: 'build-greenhouse',
+  REPAIR_HABITAT: 'repair-habitat',
+  ACTIVATE_LIFE_SUPPORT: 'activate-life-support',
+  BUILD_STORM_SHELTER: 'build-storm-shelter',
+  PRIORITIZE_LIFE_SUPPORT: 'prioritize-life-support',
+  PRIORITIZE_RESEARCH: 'prioritize-research',
+  SEND_ROVER: 'send-rover',
+  CREW_REST: 'crew-rest',
+  CONSERVE_AND_OBSERVE: 'conserve-and-observe',
+};
+
 export const MARS_MISSION = {
-  id: 'mars-first-light', destination: 'Mars', durationDays: 30,
-  objectives: ['Keep the crew safe for 30 sols', 'Bring the habitat online', 'Complete the first soil study'],
+  id: 'mars-first-light', destination: 'Mars', durationDays: 7,
+  objectives: ['Keep the crew safe for 7 sols', 'Bring the habitat online', 'Complete the first soil study'],
   crew: [
     { id: 'mika', name: 'Mika Chen', role: 'Flight engineer', avatar: '🧑🏽‍🚀', line: 'I can get the habitat humming. You call the shots, Commander.' },
     { id: 'sol', name: 'Sol Okafor', role: 'Field scientist', avatar: '👩🏾‍🚀', line: 'Those red dunes are full of clues. Let’s find out what Mars is made of.' },
