@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
 
 function drawBuilding(scene, building, selected, onSelect) {
   const x = scene.scale.width * building.x;
@@ -60,9 +59,14 @@ export default function OutpostScene({ snapshot, selectedBuildingId, onSelectBui
   const sceneRef = useRef(null);
   const latestRef = useRef({ snapshot, selectedBuildingId, onSelectBuilding });
   latestRef.current = { snapshot, selectedBuildingId, onSelectBuilding };
+  const buildings = snapshot?.buildings || [];
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
+    let disposed = false;
+    let game = null;
+    import('phaser').then(({ default: Phaser }) => {
+      if (disposed || !hostRef.current) return;
     class MarsOutpost extends Phaser.Scene {
       constructor() { super('MarsOutpost'); }
       create() {
@@ -97,7 +101,7 @@ export default function OutpostScene({ snapshot, selectedBuildingId, onSelectBui
         ));
       }
     }
-    const game = new Phaser.Game({
+    game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: hostRef.current,
       width: 960,
@@ -108,9 +112,12 @@ export default function OutpostScene({ snapshot, selectedBuildingId, onSelectBui
       render: { antialias: true, pixelArt: false },
       audio: { noAudio: true },
     });
-    return () => { sceneRef.current = null; game.destroy(true); };
+    }).catch(() => {
+      if (!disposed && hostRef.current) hostRef.current.setAttribute('aria-label', 'The Mars scene could not load. Use the structure buttons below to continue.');
+    });
+    return () => { disposed = true; sceneRef.current = null; game?.destroy(true); };
   }, []);
 
   useEffect(() => { sceneRef.current?.paint(); }, [snapshot, selectedBuildingId]);
-  return <div className="outpost-canvas" ref={hostRef} role="img" aria-label="Interactive Mars outpost. Select a building to inspect it." />;
+  return <><div className="outpost-canvas" ref={hostRef} role="img" aria-label="Interactive Mars outpost. Use the structure buttons below to select a building."/><div className="building-shortcuts" role="group" aria-label="Select an outpost structure">{buildings.map((building) => <button type="button" key={building.id} onClick={() => onSelectBuilding(building.id)} aria-pressed={selectedBuildingId === building.id}>{building.name}<small>{building.status === 'online' ? 'ONLINE' : 'STANDBY'}</small></button>)}</div></>;
 }

@@ -19,6 +19,7 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
   const [message, setMessage] = useState('Connecting to the outpost…');
   const [error, setError] = useState('');
   const [showScience, setShowScience] = useState(false);
+  const [scienceContext, setScienceContext] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -28,6 +29,8 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
     }).catch((cause) => { if (active) { setError(cause.message); setBusy(false); } });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => { worldApi.getScienceContext().then(setScienceContext); }, []);
 
   const selectedBuilding = snapshot?.buildings.find((building) => building.id === selectedBuildingId);
   const availableActions = snapshot?.availableActions || [];
@@ -60,8 +63,17 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
   };
+  const retryMission = async () => {
+    setBusy(true); setError('');
+    try {
+      const saved = await worldApi.getSnapshot();
+      const next = saved || await worldApi.startMission(MARS_MISSION.id, profile);
+      setSnapshot(next); setMessage('Mission connection refreshed. Your saved outpost is ready.');
+    } catch (cause) { setError(cause.message); }
+    finally { setBusy(false); }
+  };
 
-  if (!snapshot) return <main className="mission-world"><div className="world-loading"><span className="world-orbit-mark">✦</span><p>{error || message}</p><button className="world-secondary" onClick={onBackToLaunch}>BACK TO MISSION CONTROL</button></div></main>;
+  if (!snapshot) return <main className="mission-world"><div className="world-loading"><span className="world-orbit-mark">✦</span><p role="status">{error || message}</p>{error && <button className="world-secondary" onClick={retryMission} disabled={busy}>RETRY CONNECTION</button>}<button className="world-secondary" onClick={onBackToLaunch}>BACK TO MISSION CONTROL</button></div></main>;
   const completed = snapshot.status !== 'active';
   const buildingCopy = selectedBuilding?.kind === 'solar'
     ? 'The array helps supply power to habitat systems. Bring it online to grow the outpost’s modeled power buffer.'
@@ -80,29 +92,31 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
       <div><span className="world-eyebrow"><i/> MARS OUTPOST · FIRST LIGHT</span><h1>Good to have you here, Commander {profile?.callsign || 'Cadet'}.</h1></div>
       <div className="world-header-actions"><span className="world-save"><i/> {snapshot.adapter === 'api' ? 'MISSION SERVICE CONNECTED' : 'LOCAL MISSION SAVE'}</span><button className="world-icon-button" onClick={() => setShowScience(!showScience)} aria-expanded={showScience} aria-label="Game model explanation"><CircleHelp size={17}/></button></div>
     </header>
-    <div className="world-objective-row"><div className="objective-marker"><Sparkles size={15}/></div><div><span>{completed ? 'MISSION COMPLETE' : snapshot.day === 1 ? 'YOUR FIRST JOB' : 'MISSION OBJECTIVE'}</span><strong>{completed ? 'Mission Control is ready to review the flight.' : snapshot.day === 1 ? 'Get the outpost ready for its first full sol.' : 'Protect the crew, keep systems running, and complete the soil study.'}</strong></div><div className="sol-counter"><small>MISSION DAY</small><b>{String(snapshot.day).padStart(2, '0')} <i>/ {String(snapshot.durationDays).padStart(2, '0')} SOLS</i></b></div></div>
+    <div className="world-objective-row"><div className="objective-marker"><Sparkles size={15}/></div><div><span>{completed ? 'MISSION COMPLETE' : snapshot.activeEvent ? 'OUTPOST EVENT' : snapshot.day === 1 ? 'YOUR FIRST JOB' : 'MISSION OBJECTIVE'}</span><strong>{completed ? snapshot.debrief?.title || 'Mission Control is ready to review the flight.' : snapshot.activeEvent ? `${snapshot.activeEvent.title} — choose how the crew responds.` : snapshot.day === 1 ? 'Get the outpost ready for its first full sol.' : 'Protect the crew, keep systems running, and complete the soil study.'}</strong></div><div className="sol-counter"><small>MISSION DAY</small><b>{String(snapshot.day).padStart(2, '0')} <i>/ {String(snapshot.durationDays).padStart(2, '0')} SOLS</i></b></div></div>
 
     <section className="world-layout" aria-label="Mars mission">
       <div className="world-main-column">
         <div className="world-scene-frame"><div className="scene-label"><span>UTOPIA PLANITIA</span><span>SOL {String(snapshot.day).padStart(2, '0')} · {snapshot.day === 1 ? 'TOUCHDOWN' : completed ? 'FLIGHT COMPLETE' : 'OUTPOST ONLINE'}</span></div><OutpostScene snapshot={snapshot} selectedBuildingId={selectedBuildingId} onSelectBuilding={chooseBuilding}/><div className="scene-caption">Tap a structure to inspect it. Your outpost will change as the mission unfolds.</div></div>
-        <div className="resource-strip" aria-label="Outpost systems, illustrative game values">{resourceMeta.map(([key, label, Icon]) => <div className="resource-chip" key={key}><Icon size={15}/><span>{label}</span><b>{snapshot.resources[key]}<small> GU</small></b><i className={`resource-meter ${key === 'radiationRisk' ? 'is-risk' : ''}`}><i style={{ width: `${snapshot.resources[key]}%`, backgroundColor: key === 'radiationRisk' ? (snapshot.resources[key] >= 40 ? '#d49b4b' : '#82b08a') : undefined }}/></i></div>)}</div>
+        <div className="resource-strip" aria-label="Outpost systems, illustrative game values">{resourceMeta.map(([key, label, Icon]) => <div className="resource-chip" key={key}><Icon size={15}/><span>{label}</span><b>{snapshot.resources[key]}<small> GU</small></b><div className={`resource-meter ${key === 'radiationRisk' ? 'is-risk' : ''}`} role="meter" aria-label={`${label} in illustrative game units`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={snapshot.resources[key]}><i style={{ width: `${snapshot.resources[key]}%`, backgroundColor: key === 'radiationRisk' ? (snapshot.resources[key] >= 40 ? '#d49b4b' : '#82b08a') : undefined }}/></div></div>)}</div>
         <p className="game-value-note">GU = game units. Exposure risk is an abstract training meter, not a radiation dose. All values are simplified for play and are not NASA measurements.</p>
+        {scienceContext && <details className="science-context"><summary>{scienceContext.isLiveObservation ? 'NASA ARCHIVE OBSERVATION' : 'NASA REFERENCE FACT'} · {scienceContext.offlineFallback ? 'OFFLINE COPY' : 'SOURCE NOTE'}</summary><div className="science-context-body">{scienceContext.imageUrl && <img src={scienceContext.imageUrl} alt={`NASA archive image: ${scienceContext.title}`} loading="lazy"/>}<div><b>{scienceContext.title}</b><p>{scienceContext.summary}</p><dl><div><dt>DATE / PERIOD</dt><dd>{scienceContext.dateOrPeriod}</dd></div><div><dt>UNIT</dt><dd>{scienceContext.unit}</dd></div><div><dt>ATTRIBUTION</dt><dd>{scienceContext.attribution}</dd></div></dl><small>{scienceContext.interpretation}</small><a href={scienceContext.source} target="_blank" rel="noreferrer">SOURCE · {scienceContext.sourceName}</a></div></div></details>}
         {snapshot.events?.length > 1 && <details className="mission-log"><summary>MISSION LOG · {snapshot.events.length} UPDATES</summary><ol>{snapshot.events.slice().reverse().map((event, index) => <li key={`${event.id}-${index}`}><b>SOL {String(event.day).padStart(2, '0')}</b>{event.text}</li>)}</ol></details>}
       </div>
 
       <aside className="world-side-panel">
-        <div className="orbit-card"><div className="orbit-avatar">✦</div><div className="orbit-heading"><span>ORBIT · MISSION ADVISOR</span><small>READY TO HELP</small></div><p>{completed ? 'Your seven-sol training flight is complete. Mission Control can review the choices and systems log.' : snapshot.lastOutcome ? 'Good call, Commander. Each choice uses time and supplies. Pick the next step that matters most to your crew.' : 'Select a structure or mission action. I’ll show what the crew expects to change before you commit.'}</p><button onClick={() => setShowScience(!showScience)}><CircleHelp size={13}/> HOW THE GAME MODEL WORKS</button></div>
+        <div className="orbit-card"><div className="orbit-avatar">✦</div><div className="orbit-heading"><span>ORBIT · MISSION ADVISOR</span><small>READY TO HELP</small></div><p>{completed ? 'Your seven-sol training flight is complete. Mission Control can review the choices and systems log.' : snapshot.activeEvent ? 'A mission event is active. Choose a response first; your response is logged as a branch, then the crew can continue its normal work this sol.' : snapshot.lastOutcome ? 'Good call, Commander. Each choice uses time and supplies. Pick the next step that matters most to your crew.' : 'Select a structure or mission action. I’ll show what the crew expects to change before you commit.'}</p><button onClick={() => setShowScience(!showScience)}><CircleHelp size={13}/> HOW THE GAME MODEL WORKS</button></div>
 
-        <div className="system-inspector"><div className="panel-kicker">{snapshot.day === 1 ? 'OUTPOST SYSTEM' : 'MISSION DECISION'}</div><h2>{snapshot.day === 1 ? selectedBuilding?.name || 'Select a structure' : completed ? 'Flight summary' : 'What should the crew do?'}</h2>
+        <div className="system-inspector"><div className="panel-kicker">{completed ? 'FLIGHT DEBRIEF' : snapshot.activeEvent ? 'MISSION EVENT · RESPONSE REQUIRED' : snapshot.day === 1 ? 'OUTPOST SYSTEM' : 'MISSION DECISION'}</div><h2>{completed ? snapshot.debrief?.title || 'Flight summary' : snapshot.activeEvent ? snapshot.activeEvent.title : snapshot.day === 1 ? selectedBuilding?.name || 'Select a structure' : 'What should the crew do?'}</h2>
+          {snapshot.activeEvent && <p className="event-trigger" role="status">{snapshot.activeEvent.trigger} Event responses do not advance the sol; resolve this first, then choose the crew’s regular work.</p>}
           {snapshot.day === 1 && <><div className={`system-status ${selectedBuilding?.status === 'online' ? 'is-online' : ''}`}><i/>{selectedBuilding?.status === 'online' ? 'ONLINE' : 'STANDBY'}</div><p>{buildingCopy}</p></>}
-          {!completed && <><div className="action-list" role="group" aria-label="Available mission choices">{availableActions.map((option) => <button key={option.id} className={`action-option ${selectedAction?.id === option.id ? 'selected' : ''}`} onClick={() => setSelectedActionId(option.id)} aria-pressed={selectedAction?.id === option.id}><span>{option.title}</span><small>{option.detail}</small></button>)}</div>{selectedAction && <><div className="action-preview"><span>THIS SOL</span><strong>{selectedAction.title.toUpperCase()}</strong><small>{selectedAction.detail}</small></div><button className="world-primary" disabled={busy} onClick={takeAction}>{busy ? 'UPDATING THE OUTPOST…' : 'CONFIRM THIS CHOICE'} <ArrowRight size={16}/></button></>}</>}
-          {completed && <div className="mission-complete"><Check size={18}/><span>CREW SAFE · TRAINING FLIGHT FINISHED</span></div>}
-          {error && <p className="world-error" role="alert">{error}</p>}{message && !busy && <p className="world-feedback" role="status">{message}</p>}
+          {!completed && <><div className="action-list" role="group" aria-label={snapshot.activeEvent ? 'Event responses' : 'Available mission choices'}>{availableActions.map((option) => <button key={option.id} className={`action-option ${selectedAction?.id === option.id ? 'selected' : ''}`} onClick={() => setSelectedActionId(option.id)} aria-pressed={selectedAction?.id === option.id}><span>{option.title}</span><small>{option.detail}</small></button>)}</div>{selectedAction && <><div className="action-preview"><span>{snapshot.activeEvent ? 'EVENT RESPONSE · SOL DOES NOT ADVANCE' : 'THIS SOL'}</span><strong>{selectedAction.title.toUpperCase()}</strong><small>{selectedAction.detail}</small></div><button className="world-primary" disabled={busy} onClick={takeAction}>{busy ? 'UPDATING THE OUTPOST…' : snapshot.activeEvent ? 'RESOLVE THIS EVENT' : 'CONFIRM THIS CHOICE'} <ArrowRight size={16}/></button></>}</>}
+          {completed && <><div className="mission-complete"><Check size={18}/><span>{snapshot.debrief?.text || 'TRAINING FLIGHT FINISHED'}</span></div><ul className="debrief-objectives">{snapshot.debrief?.objectives?.map((objective) => <li key={objective.id} className={objective.complete ? 'complete' : ''}><span>{objective.complete ? '✓' : '○'}</span>{objective.title}</li>)}</ul>{snapshot.debrief?.branches?.length > 0 && <div className="debrief-branches"><b>YOUR BRANCHES</b>{snapshot.debrief.branches.map((branch, index) => <p key={`${branch.eventId}-${index}`}>Sol {branch.day}: {branch.eventTitle} — {branch.choice}</p>)}</div>}</>}
+          {error && <div className="world-error" role="alert"><p>{error}</p><button className="world-secondary" onClick={retryMission} disabled={busy}>REFRESH MISSION</button></div>}{message && !busy && <p className="world-feedback" role="status">{message}</p>}
         </div>
         <div className="crew-card"><div className="panel-kicker">CREW CHANNEL</div><div className="crew-line"><span>👩🏾‍🚀</span><p><b>Sol · Field scientist</b><br/>{snapshot.day === 1 ? 'I’m ready to study the soil once we have the outpost set up.' : completed ? 'Thanks for keeping the crew and our work in mind, Commander.' : 'The nearby soil site is ready when our systems and supplies allow.'}</p></div></div>
         {snapshot.day > 1 && <button className="world-secondary restart-button" onClick={restart} disabled={busy}><RotateCcw size={14}/> RESTART MISSION</button>}
       </aside>
     </section>
-    {showScience && <div className="science-toast" role="status"><button aria-label="Close explanation" onClick={() => setShowScience(false)}>×</button><b>HOW THE GAME MODEL WORKS</b><p>Each choice and systems check changes abstract game units. The scenario’s rates and outcomes are created for gameplay; they are not NASA measurements or mission forecasts.</p><small>NASA sourced observations will be attributed separately when added to the mission.</small></div>}
+    {showScience && <div className="science-toast" role="status"><button aria-label="Close explanation" onClick={() => setShowScience(false)}>×</button><b>HOW THE GAME MODEL WORKS</b><p>Each choice and systems check changes abstract game units. The scenario’s rates and outcomes are created for gameplay; they are not NASA measurements or mission forecasts.</p><small>NASA source notes are shown separately below the world. They provide context and never drive the fictional resource simulation.</small></div>}
   </main>;
 }

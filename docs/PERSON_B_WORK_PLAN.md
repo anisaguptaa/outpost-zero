@@ -39,26 +39,47 @@ Person B owns the interactive outpost world and the game systems that make playe
 
 ## Phase 4 — Events and branching scenarios
 
-- Author 8–10 scenario events with triggers, choices, prerequisites, immediate and delayed outcomes, and explanatory copy.
-- Add seeded randomness/logging for reproducible runs; ensure each event has a reasonable recovery path.
-- Add branch-aware objective progress and safe/partial-success outcomes.
+- [x] Author nine events in three event windows (Sols 2, 4, and 6). Each has a trigger, eligible-response prerequisites, two player choices, clear copy, and immediate and/or delayed effects.
+- [x] Select event variants deterministically from the mission seed and current outpost conditions; record events, choices, and delayed consequences in the mission log.
+- [x] Keep an always-available recovery response in each event window; event responses resolve before the regular work action and do not consume the sol.
+- [x] Record branch choices and calculate crew-safety, habitat, and science objectives for the debrief.
 
 **Complete when:** A short mission contains a complication that changes the player's available options and leads to a visible branch in the debrief.
 
 ## Phase 5 — ORBIT, science context, and debrief
 
-- Add optional contextual hints and separate “Mission tip” from “Space fact.”
-- Attach source, date/period, unit, attribution, and interpretation metadata to any real observation used.
-- Keep NASA observations distinct from authored game rules and simulated outputs; cache data and provide an offline fallback.
-- Build a debrief that explains consequences and recognizes safety, recovery, and reasoning rather than only a single score.
+- [x] ORBIT explains active events, consequences, and the distinction between game model and real source material.
+- [x] Add NASA Image and Video Library archive context through the backend. The UI labels archived imagery separately from the simulation and provides source, date, unit/media type, attribution, and interpretation metadata.
+- [x] Cache the NASA source record for six hours in the API process and fall back to an attributed NASA Mars fact when the service is unavailable. The static/local game has the same offline reference fallback.
+- [x] Add distinct debrief endings (full science success, safe outpost with study continuing, lessons/partial success, and emergency-return recommendation) with objective status and the player's recorded event branches.
 
 **Complete when:** A player can explain at least one engineering trade-off and tell a sourced observation from a game-model value.
 
 ## Phase 6 — Integration, accessibility, and expansion readiness
 
-- Test keyboard, mouse, touch, reduced motion, contrast, labels, error/retry, reset, and narrow-screen behavior.
-- Balance the 7-sol Mars mission with playtesting; extend toward 30 sols only after the short mission reads well.
-- Stabilize demo deployment and deterministic demo scenarios; verify offline/static content behavior.
-- Prepare destination configuration for a later Moon mode without making the Mars MVP depend on lunar content.
+- [x] Keep pointer selection and add keyboard-accessible structure buttons; add visible focus styles, accessible resource meters, readable event/debrief status, reduced-motion rules, and responsive source metadata. Manually checked keyboard activation and a 390px viewport with no horizontal overflow.
+- [ ] Check physical touchscreen input, an OS-level reduced-motion setting, and a contrast audit on target devices before release; only the browser pointer and authored media rules were available in this pass.
+- [x] Retain seven-sol deterministic mission, restart/replay, existing local save, and guaranteed event recovery actions. Keep API network failures on the local rules/factual fallback path.
+- [x] Document production build, local demo, API-on/API-off behavior, NASA-source fallback, and a deterministic seed for a repeatable demo.
+- [x] Keep Mars scenario data separate and data-driven; the API reports Moon as unavailable until a separate lunar scenario and mechanics are authored and reviewed.
+- [ ] Playtest resource balance with children/educators before expanding the Mars campaign toward 30 sols or authoring Moon-specific rules.
 
 **Complete when:** The mission can be completed and replayed from a fresh browser, the demo has a fallback, and expansion work does not destabilize Mars.
+
+## Phase 4–6 implementation notes
+
+- Event windows are authored at Sols 2, 4, and 6. One event is selected from each window with `seed` and eligible scenario prerequisites. The event choice is a narrative response that resolves before the regular action for that sol.
+- Events use illustrative game values only. Event text describing dust, pressure, filters, and route obstructions is a fictional training scenario, not a current Mars forecast or NASA operational model.
+- The NASA source connector uses the NASA Image and Video Library search endpoint for archived Mars imagery. If it is unavailable, the game presents a NASA Science Mars fact as an offline reference. Neither source feeds resource-generation equations.
+- Science threshold, ending thresholds, event effects, and event timing are prototype balance assumptions. Tune them with play sessions; do not present them as real crew-safety limits.
+- Deterministic demo seed: `2026`. Mission history and actions persist in the browser; FastAPI keeps sessions in memory for the local demo. Static mode works without the API or an API key.
+- Live walkthrough completed through the API: mission start, event branch choices, delayed effects, seven-sol completion, and full debrief. API-free walkthrough confirmed the local save, event branch, NASA fact fallback, and restart. The NASA archive image and attribution metadata loaded from NASA's search endpoint.
+- `py -3` is not installed in this Windows environment; FastAPI was already running and hot-reloaded for the walkthrough. A standalone backend install/run from a fresh environment still needs a machine with Python available.
+
+## Phase 6 demo and release checklist
+
+- [x] `npm run build` creates the static browser bundle.
+- [x] Keep `VITE_OUTPOST_API_URL` optional; no API means the deterministic local game remains playable.
+- [x] Use `/api/v1/health` to confirm the local backend and `/api/v1/science/context` to inspect the NASA record or fallback.
+- [ ] Configure a public static host only after the team chooses its host and approves publishing. No NASA key is needed for the NASA Image and Video Library search.
+- [ ] Before a judged demo, clear the browser save or choose **RESTART MISSION**, then play seed `2026` and capture the final branch/debrief.

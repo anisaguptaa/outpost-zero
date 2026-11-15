@@ -25,11 +25,13 @@ The API stores sessions in memory for the local demo. Restarting the API clears 
 
 ## Current playable slice
 
-Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission-ready handoff → first-sol outpost choice. The callsign and mission save persist in the browser. The seven-sol Mars mission has six selectable structures and connected power, oxygen, water, food, habitat, crew, exposure-risk, and science tracks. Phase 3 adds delayed greenhouse production, life-support recovery, and shelter protection, with all values clearly labeled as game values. Configure VITE_OUTPOST_API_URL to use FastAPI; without it the browser adapter runs the same simplified rules locally. Authored event branches, lunar mode, and final debrief remain future phases. Crew/dialogue data is mock content; sound control remains visual only.
+Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission-ready handoff → outpost decisions → event branches → mission debrief. The callsign and mission save persist in the browser. The seven-sol Mars mission has six selectable structures and connected power, oxygen, water, food, habitat, crew, abstract exposure-risk, and science tracks. Nine authored events can branch across Sols 2, 4, and 6. The debrief reports crew safety, habitat, science objectives, and the player's event branches. Values and outcomes are illustrative gameplay units, never NASA measurements or safety limits.
 
-## Planned game loop
+The NASA context card displays archived imagery and metadata from NASA's Image and Video Library when reachable. If it cannot be reached, the API returns an attributed NASA planetary fact. Neither source changes the fictional mission calculations. Configure `VITE_OUTPOST_API_URL` to use FastAPI; without it, the game runs the same deterministic rules locally and shows the offline fact. The Mars mission uses seed `2026` for a repeatable demo. Moon mode remains a later expansion. Crew/dialogue data is authored demo content; the sound toggle is still visual only.
 
-Briefing → prepare the Mars outpost → play a mission sol → respond to an event → see consequences → debrief. The first-sol playable slice is the integration milestone; longer campaigns and Moon mode follow after the core loop is stable.
+## Game loop
+
+Briefing → prepare the Mars outpost → resolve any event response → choose the crew's regular work → review immediate and delayed consequences → debrief. NASA source context is shown separately from game-model explanations.
 
 ## Stack
 
@@ -46,11 +48,18 @@ Briefing → prepare the Mars outpost → play a mission sol → respond to an e
 
 Person 1 owns app routing and will host Person 2’s Phaser scene at the mission handoff. Person 2 can work against the shared snapshot/request contracts without editing Person 1’s screens. The mock adapter in `src/person1/api.js` is the future API replacement point; the opening slice does not depend on FastAPI.
 
-For parallel work, use separate `frontend-experience` and `gameplay-simulation` branches and integrate through pull requests into `main`.
+For parallel work, use separate `frontend-experience` and `gameplay-simulation` branches and integrate through pull requests into `main`. Person 1 owns opening flow and later visual redesigns; Person 2 owns `src/person2/`, `backend/app/`, and scenario data. Coordinate edits to `src/shared/contracts.js` and app handoff with each other. Keep pull requests focused and merge the shared contract before dependent changes.
+
+## Demo and deployment
+
+- Static fallback: run `npm run dev` without `VITE_OUTPOST_API_URL`; the local deterministic mission and NASA fact fallback work without FastAPI.
+- API demo: start FastAPI, set `VITE_OUTPOST_API_URL=http://127.0.0.1:8000` in `.env.local`, then start Vite. Check `/api/v1/health` and `/api/v1/science/context`.
+- Build a static demo with `npm run build`, then serve the generated `dist/` folder from the team's chosen static host. No deployment is configured yet; choose and approve a public host before publishing.
+- For a repeatable demo, start from a fresh browser save or choose **RESTART MISSION**. The scenario seed is `2026`; the event choice and debrief are reproducible.
 
 ## MVP direction
 
-- Mars first: a 7–10-sol mission suitable for a demo. Moon mode is an expansion after the Mars loop works.
+- Mars first: a seven-sol prototype suitable for a demo, expandable toward 30 sols after playtesting. Moon mode is an expansion after the Mars loop works.
 - Power, oxygen, water, food, crew wellbeing, habitat condition, abstract exposure risk, and science progress.
 - Five or six interactive structures and 8–10 authored events.
 - Explain consequences clearly and distinguish NASA observations, derived calculations, and fictional training scenarios.

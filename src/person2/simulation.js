@@ -4,15 +4,20 @@ const clamp = (value) => Math.max(0, Math.min(100, value));
 
 export function availableActions(snapshot) {
   if (snapshot.status !== 'active') return [];
-  const options = snapshot.day === 1 ? MARS_FIRST_LIGHT.firstActions : MARS_FIRST_LIGHT.dailyActions;
+  let options;
+  if (snapshot.activeEvent) {
+    const event = MARS_FIRST_LIGHT.events.find((item) => item.id === snapshot.activeEvent.id);
+    options = (event?.choices || []).map((choice) => ({ ...choice, id: `event:${event.id}:${choice.id}`, isEventChoice: true, eventId: event.id, eventTitle: event.title }));
+  } else options = snapshot.day === 1 ? MARS_FIRST_LIGHT.firstActions : MARS_FIRST_LIGHT.dailyActions;
   return options.filter((action) => {
     const required = action.requiresBuilding && snapshot.buildings.find((item) => item.id === action.requiresBuilding.id);
     if (action.requiresBuilding && (!required || required.status !== action.requiresBuilding.status)) return false;
     if (action.minResource && snapshot.resources[action.minResource.key] < action.minResource.value) return false;
     if (action.minResourceSecondary && snapshot.resources[action.minResourceSecondary.key] < action.minResourceSecondary.value) return false;
     if (action.maxResource && snapshot.resources[action.maxResource.key] >= action.maxResource.value) return false;
+    if ((action.requiresResources || []).some((requirement) => snapshot.resources[requirement.key] < requirement.minimum)) return false;
     return true;
-  }).map(({ requiresBuilding, minResource, minResourceSecondary, maxResource, ...action }) => action);
+  }).map(({ requiresBuilding, minResource, minResourceSecondary, maxResource, requiresResources, ...action }) => action);
 }
 
 export function createInitialSnapshot(sessionId = `local-${Date.now()}`, seed = 2026) {
@@ -22,7 +27,7 @@ export function createInitialSnapshot(sessionId = `local-${Date.now()}`, seed = 
     resources: { ...MARS_FIRST_LIGHT.initialResources },
     buildings: MARS_FIRST_LIGHT.buildings.map((item) => ({ ...item })),
     powerMode: 'balanced', events: [{ id: 'touchdown', day: 1, text: 'Touchdown confirmed. The crew is at the outpost.' }],
-    status: 'active', lastOutcome: null,
+    status: 'active', lastOutcome: null, activeEvent: null, branches: [], delayedEffects: [], debrief: null,
   };
   snapshot.availableActions = availableActions(snapshot);
   return snapshot;
@@ -36,6 +41,24 @@ export function resolveAction(snapshot, actionId, expectedDay = snapshot.day) {
   const state = structuredClone(snapshot);
   const beforeDay = state.day;
   const resources = state.resources;
+  if (action.isEventChoice) {
+    for (const [key, delta] of Object.entries(action.effects || {})) resources[key] = clamp((resources[key] || 0) + delta);
+    for (const delayed of action.delayedEffects || []) state.delayedEffects.push({ dueDay: beforeDay + delayed.days, effects: delayed.effects, text: delayed.text });
+    state.branches.push({ day: beforeDay, eventId: action.eventId, eventTitle: action.eventTitle, branch: action.branch, choice: action.title });
+    state.events.push({ id: action.id, day: beforeDay, kind: 'branch', text: action.log });
+    state.activeEvent = null;
+    state.lastOutcome = { actionId, title: action.title, text: action.log, kind: 'branch' };
+    state.availableActions = availableActions(state);
+    return state;
+  }
+  const pending = [];
+  for (const effect of state.delayedEffects) {
+    if (effect.dueDay <= beforeDay) {
+      for (const [key, delta] of Object.entries(effect.effects)) resources[key] = clamp((resources[key] || 0) + delta);
+      state.events.push({ id: `delayed-${effect.dueDay}-${state.events.length}`, day: beforeDay, kind: 'delayed', text: effect.text });
+    } else pending.push(effect);
+  }
+  state.delayedEffects = pending;
   for (const [key, delta] of Object.entries(action.effects || {})) resources[key] = clamp((resources[key] || 0) + delta);
   if (action.buildingId && action.buildingStatus) {
     const building = state.buildings.find((item) => item.id === action.buildingId);
@@ -74,8 +97,37 @@ export function resolveAction(snapshot, actionId, expectedDay = snapshot.day) {
   state.lastOutcome = { actionId, title: action.title, text: `${action.log} ${summary}` };
   if (beforeDay >= state.durationDays) {
     state.status = 'completed';
-    state.lastOutcome.text += ' The seven-sol training mission is complete; Mission Control is ready to review the flight.';
-  } else state.day = beforeDay + 1;
+    const crewSafe = resources.oxygen > 0 && resources.crewWellbeing > 0;
+    const habitatReady = resources.habitatIntegrity >= 50;
+    const scienceComplete = resources.scienceProgress >= 40;
+    const [endingId, title, text] = !crewSafe
+      ? ['emergency-return', 'Emergency return recommended', 'The crew’s modeled safety reserve ran low. Mission Control prioritizes a safe return and a systems review.']
+      : habitatReady && scienceComplete
+        ? ['full-success', 'First Light: science mission complete', 'The crew kept the habitat stable and completed a strong soil study. The outpost is ready for another mission.']
+        : habitatReady
+          ? ['safe-outpost', 'First Light: safe outpost, study continues', 'The crew maintained a stable outpost. The soil study needs another mission window.']
+          : ['partial-success', 'First Light: lessons secured', 'The crew recovered useful lessons and returned safely. Mission Control has a clear list of systems to improve.'];
+    state.debrief = { endingId, title, text, objectives: [
+      { id: 'crew-safe', title: 'Protect the crew', complete: crewSafe },
+      { id: 'habitat-stable', title: 'Keep the habitat stable', complete: habitatReady },
+      { id: 'soil-study', title: 'Complete the soil study', complete: scienceComplete },
+    ], branches: structuredClone(state.branches), finalResources: structuredClone(resources) };
+    state.lastOutcome.text += ` ${title}. ${text}`;
+  } else {
+    state.day = beforeDay + 1;
+    const eventIds = MARS_FIRST_LIGHT.eventSchedule?.[String(state.day)] || [];
+    if (eventIds.length) {
+      const eventPool = MARS_FIRST_LIGHT.events.filter((item) => eventIds.includes(item.id) && (item.prerequisites || []).every((requirement) => requirement.type === 'building'
+        ? state.buildings.some((building) => building.id === requirement.id && building.status === requirement.status)
+        : state.resources[requirement.key] >= requirement.minimum));
+      const fallback = MARS_FIRST_LIGHT.events.find((item) => item.id === eventIds[eventIds.length - 1]);
+      const eligible = eventPool.length ? eventPool : [fallback];
+      const eventIndex = Math.abs(state.seed * 31 + state.day * 17) % eligible.length;
+      const event = eligible[eventIndex];
+      state.activeEvent = { id: event.id, title: event.title, trigger: event.trigger, day: state.day };
+      state.events.push({ id: `event-${event.id}`, day: state.day, kind: 'event', text: `${event.title}: ${event.trigger}` });
+    }
+  }
   state.availableActions = availableActions(state);
   return state;
 }
