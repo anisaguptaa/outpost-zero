@@ -1,58 +1,63 @@
 # OUTPOST ZERO
 
-An adventure-style space survival game for ages 7–12. Players lead an outpost, make science-informed choices, and see those choices shape the mission.
+An adventure-style Mars mission game for ages 7–12. Players lead a crew through a story, prepare a flight, land at Utopia Planitia, and make choices that change a playable outpost simulation. Science is explained in the story and clearly separated from fictional training values.
 
 ## Run it in VS Code
 
-Open this folder in VS Code, press **F5**, and choose **OUTPOST ZERO — Run game** if asked. VS Code starts Vite and opens the game in Chrome. Press **Shift+F5** to stop it.
+Open this folder in VS Code, press **F5**, and choose **OUTPOST ZERO — Run game** if asked. The game opens in Chrome. Press **Shift+F5** to stop it.
 
 ## Run it from a terminal
 
 1. Install Node.js 20 or newer.
 2. Run `npm install` once from this folder.
-3. Run `npm run dev` and open the local address Vite prints (usually `http://localhost:5173`).
+3. Run `npm run dev -- --host 0.0.0.0 --port 5173 --strictPort` and open `http://localhost:5173`.
+4. To make a production build, run `npm run build`.
 
-To make a production build, run `npm run build`.
+If port 5173 is busy, choose another port, such as `5175`.
 
-## Run the mission API
+## Optional mission API
 
-1. From the repository root, create and activate a Python virtual environment.
+The game runs with its local browser simulation by default. To run the FastAPI service:
+
+1. Create and activate a Python virtual environment from the repository root.
 2. Install `backend/requirements.txt`.
 3. Run `uvicorn backend.app.main:app --reload` (API at `http://127.0.0.1:8000`).
-4. Copy `.env.example` to `.env.local` to connect the Vite app to the local API. Without that setting, the game uses its deterministic local adapter.
+4. Copy `.env.example` to `.env.local` and set `VITE_OUTPOST_API_URL=http://127.0.0.1:8000`.
 
-The API stores sessions in memory for the local demo. Restarting the API clears server sessions; browser saves still provide an offline fallback.
+The API stores sessions in memory for the demo. Restarting the API clears server sessions; browser saves remain available as an offline fallback.
 
 ## Current playable slice
 
-Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission-ready handoff → first-sol outpost choice. The callsign and mission save persist in the browser. The seven-sol Mars mission has six selectable structures and connected power, oxygen, water, food, habitat, crew, exposure-risk, and science tracks. Phase 3 adds delayed greenhouse production, life-support recovery, and shelter protection, with all values clearly labeled as game values. Configure VITE_OUTPOST_API_URL to use FastAPI; without it the browser adapter runs the same simplified rules locally. Authored event branches, lunar mode, and final debrief remain future phases. Crew/dialogue data is mock content; sound control remains visual only.
+Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission planning and two-item training cargo → launch → animated Mars arrival → first surface-walk preparation → interactive outpost simulation. Players can check in with crew, collect field notes, and build a saved flight log. Mission profile, preparation, and progression persist in browser storage. Person 2's simulation currently keeps its own local world save; the next integration step is to bridge world snapshots and completion reports into Person 1's flight log and debrief. The cargo limit and simulation values are fictional training rules, not spacecraft specifications or NASA measurements. Sound control remains visual only.
 
 ## Planned game loop
 
-Briefing → prepare the Mars outpost → play a mission sol → respond to an event → see consequences → debrief. The first-sol playable slice is the integration milestone; longer campaigns and Moon mode follow after the core loop is stable.
+Briefing → prepare the Mars outpost → play a mission sol → respond to an event → see consequences → debrief. The first-sol loop is the integration milestone; Moon mode and longer campaigns follow after it is stable.
 
 ## Stack
 
 - React + Vite for menus, story, HUD, and mission flow.
-- Phaser 3 for the interactive outpost world.
-- FastAPI and Python are the target for authoritative mission state and simulation rules; Phase 1 uses an interchangeable local browser adapter while the service is built.
-- Shared JSON contracts and versioned scenario data for integration.
+- FastAPI and Python for an optional mission API and simulation service.
+- JSON scenario data and shared contracts for Person 1 and Person 2.
 
 ## Work split and ownership
 
-- **Person 1:** onboarding, briefing, destination choice, HUD, progression, saves, and debrief.
-- **Person 2:** world scene, buildings, characters, interactions, resource simulation, events, decisions, and NASA data adapters.
-- `src/person1/` is Person 1’s area. `src/person2/` is reserved for Person 2. `src/shared/contracts.js` contains shared data shapes; coordinate changes before integrating.
+- **Person 1:** onboarding, briefing, mission preparation, HUD, player progression, saves, flight log, and debrief presentation.
+- **Person 2:** outpost world, buildings, characters, interactions, resource simulation, events, and decisions.
+- `src/person1/` is Person 1's area. `src/person2/` is Person 2's area. `src/shared/contracts.js` contains the shared data shapes.
 
-Person 1 owns app routing and will host Person 2’s Phaser scene at the mission handoff. Person 2 can work against the shared snapshot/request contracts without editing Person 1’s screens. The mock adapter in `src/person1/api.js` is the future API replacement point; the opening slice does not depend on FastAPI.
+Person 1 owns app routing and presents Person 2's world after the landing and airlock sequence. The preparation record includes the selected focus, landing-site identifier, and cargo IDs and labels. The current world module uses a separate local simulation save; connecting its snapshots and final report to Person 1's flight record is the next integration task. Snapshot values should include units and identify measured, derived, or fictional-scenario data.
 
-For parallel work, use separate `frontend-experience` and `gameplay-simulation` branches and integrate through pull requests into `main`.
+See [docs/PERSON_B_WORK_PLAN.md](docs/PERSON_B_WORK_PLAN.md) for Person 2's scope and completion criteria.
 
-## MVP direction
+## NASA and partner science resources
 
-- Mars first: a 7–10-sol mission suitable for a demo. Moon mode is an expansion after the Mars loop works.
-- Power, oxygen, water, food, crew wellbeing, habitat condition, abstract exposure risk, and science progress.
-- Five or six interactive structures and 8–10 authored events.
-- Explain consequences clearly and distinguish NASA observations, derived calculations, and fictional training scenarios.
+The source registry in `src/shared/scienceSources.js` links learning moments to agency resources and records their limits. It does not make live requests yet.
 
-See [docs/PERSON_B_WORK_PLAN.md](docs/PERSON_B_WORK_PLAN.md) for the phased Person B scope and completion criteria.
+- [NASA Mars Trek](https://trek.nasa.gov/mars/) provides Mars terrain and elevation context. Utopia Planitia is where Viking 2 landed in 1976.
+- [NASA Open APIs](https://api.nasa.gov/) can provide dated imagery and rover-photo references. Keep API keys on the backend when live requests are added.
+- [NASA CCMC DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/) provides space-weather event context; it is not a crew-specific radiation forecast.
+- [OSDR RadLab](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) provides spaceflight dosimetry readings. ISS readings help explain units but are not Mars-surface measurements.
+- [NASA OSDR](https://osdr.nasa.gov/bio/repo/) and the [Canadian Space Agency food-production toolkit](https://www.asc-csa.gc.ca/eng/youth-educators/toolkits/food-production/) support learning about astronaut health and growing food.
+
+When real data is added, show its source, date, units, and limits. Keep measured observations distinct from calculations and fictional mission values.
