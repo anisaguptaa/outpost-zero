@@ -44,7 +44,12 @@ def _actions_for(state):
     return available
 
 
-def initial_snapshot(session_id, seed=2026):
+def initial_snapshot(session_id, seed=2026, profile=None):
+    profile = profile or {}
+    kit = next((item for item in SCENARIO.get("starterKits", []) if item["id"] == profile.get("starterKit")), SCENARIO.get("starterKits", [{}])[0])
+    inventory = deepcopy(SCENARIO.get("startingInventory", {}))
+    for material, amount in kit.get("inventory", {}).items():
+        inventory[material] = inventory.get(material, 0) + amount
     state = {
         "missionId": session_id,
         "scenarioId": SCENARIO["id"],
@@ -54,6 +59,13 @@ def initial_snapshot(session_id, seed=2026):
         "seed": seed,
         "resources": deepcopy(SCENARIO["initialResources"]),
         "buildings": deepcopy(SCENARIO["buildings"]),
+        "inventory": inventory,
+        "starterKits": deepcopy(SCENARIO.get("starterKits", [])),
+        "profile": {"callsign": str(profile.get("callsign", "Cadet"))[:16], "avatarId": profile.get("avatarId", "ember"), "starterKit": kit.get("id", "repair-kit"), "destination": "mars", "playMode": "crew-coop" if profile.get("playMode") == "crew-coop" else "solo", "partnerCallsign": str(profile.get("partnerCallsign", "Crewmate"))[:16]},
+        "gatherNodes": deepcopy(SCENARIO.get("gatherNodes", [])),
+        "hazardsEntered": {},
+        "buildCosts": deepcopy(SCENARIO.get("buildCosts", {})),
+        "hazardZones": deepcopy(SCENARIO.get("hazardZones", [])),
         "powerMode": "balanced",
         "events": [{"id": "touchdown", "day": 1, "text": "Touchdown confirmed. The crew is at the outpost."}],
         "status": "active",
@@ -78,7 +90,7 @@ def _event_is_eligible(state, event):
     return True
 
 
-def resolve_action(snapshot, action_id, expected_day):
+def resolve_action(snapshot, action_id, expected_day, placement=None, crew_role=None):
     if snapshot["status"] != "active":
         raise ValueError("This mission has already ended. Restart to play again.")
     if expected_day != snapshot["day"]:
@@ -90,6 +102,21 @@ def resolve_action(snapshot, action_id, expected_day):
     state = deepcopy(snapshot)
     before_day = state["day"]
     resources = state["resources"]
+    target_id = action.get("buildingId") if action.get("buildingStatus") == "online" else None
+    cost = SCENARIO.get("buildCosts", {}).get(target_id)
+    if cost:
+        if not placement or not (0.08 <= placement.get("x", -1) <= 0.92 and 0.33 <= placement.get("y", -1) <= 0.91):
+            raise ValueError("Choose a clear build tile before confirming this structure.")
+        if any(state["inventory"].get(item, 0) < amount for item, amount in cost.items()):
+            raise ValueError("Gather the required materials before placing this structure.")
+        for building in state["buildings"]:
+            if building["id"] != target_id and building.get("status") == "online" and abs(building["x"] - placement["x"]) < 0.09 and abs(building["y"] - placement["y"]) < 0.12:
+                raise ValueError("That tile is occupied. Pick another clear patch of ground.")
+        for node in state.get("gatherNodes", []):
+            if node["amount"] > 0 and abs(node["x"] - placement["x"]) < 0.06 and abs(node["y"] - placement["y"]) < 0.08:
+                raise ValueError("A resource deposit occupies that tile. Choose another tile.")
+        for item, amount in cost.items():
+            state["inventory"][item] -= amount
     if action.get("isEventChoice"):
         for key, delta in action.get("effects", {}).items():
             resources[key] = _clamp(resources.get(key, 0) + delta)
@@ -115,12 +142,23 @@ def resolve_action(snapshot, action_id, expected_day):
             resources[key] = _clamp(resources.get(key, 0) + delta)
         else:
             resources[key] = _clamp(resources[key] + delta)
+    if crew_role == "mika" and target_id:
+        resources["habitatIntegrity"] = _clamp(resources["habitatIntegrity"] + 3)
+    elif crew_role == "sol" and ("rover" in action_id or "signal" in action_id or "sample" in action_id):
+        resources["scienceProgress"] = _clamp(resources["scienceProgress"] + 6)
+    state["crewAssignment"] = crew_role
     if action.get("buildingId") and action.get("buildingStatus"):
         for building in state["buildings"]:
             if building["id"] == action["buildingId"]:
                 building["status"] = action["buildingStatus"]
+                if cost and placement:
+                    building["x"] = placement["x"]
+                    building["y"] = placement["y"]
                 if action.get("activationDelayDays"):
                     building["onlineFromDay"] = before_day + action["activationDelayDays"]
+    if crew_role:
+        crew_names = {"mika": "Mika", "sol": "Sol", "pip": "PIP-3"}
+        state["events"].append({"id": f"crew-{crew_role}-{before_day}", "day": before_day, "kind": "crew", "text": f"{crew_names.get(crew_role, 'Crew')} joined the commander for {action['title'].lower()}."})
     if action.get("setPowerMode"):
         state["powerMode"] = action["setPowerMode"]
 
@@ -204,4 +242,46 @@ def resolve_action(snapshot, action_id, expected_day):
             state["activeEvent"] = {"id": event["id"], "title": event["title"], "trigger": event["trigger"], "day": state["day"]}
             state["events"].append({"id": f"event-{event['id']}", "day": state["day"], "kind": "event", "text": f"{event['title']}: {event['trigger']}"})
     state["availableActions"] = _actions_for(state)
+    return state
+
+
+def gather_resource(snapshot, node_id, expected_day, crew_role=None):
+    if snapshot["status"] != "active":
+        raise ValueError("The mission is complete. Start a new flight to gather supplies.")
+    if expected_day != snapshot["day"]:
+        raise RuntimeError("The sol advanced. Refresh the outpost before gathering.")
+    state = deepcopy(snapshot)
+    node = next((item for item in state.get("gatherNodes", []) if item["id"] == node_id), None)
+    if node is None or node["amount"] <= 0:
+        raise ValueError("This deposit is depleted. Search another nearby tile.")
+    amount = min(node["amount"], 2 if crew_role == "pip" else 1)
+    node["amount"] -= amount
+    state["inventory"][node["kind"]] = state["inventory"].get(node["kind"], 0) + amount
+    text = f"Collected {amount} {node['kind']} from {node['label']}."
+    state["events"].append({"id": f"gather-{node_id}-{len(state['events'])}", "day": state["day"], "kind": "gather", "text": text})
+    state["lastOutcome"] = {"actionId": f"gather-{node_id}", "title": f"Collected {node['kind']}", "text": text}
+    return state
+
+
+def enter_hazard(snapshot, zone_id, expected_day, position=None):
+    if snapshot["status"] != "active":
+        raise ValueError("The mission is complete.")
+    if expected_day != snapshot["day"]:
+        raise RuntimeError("The sol advanced. Refresh the outpost before entering a hazard zone.")
+    zone = next((item for item in SCENARIO.get("hazardZones", []) if item["id"] == zone_id and expected_day in item["sols"]), None)
+    if zone is None:
+        raise ValueError("That hazard is not active this sol.")
+    if position is not None:
+        distance = ((position.get("x", -1) - zone["x"]) ** 2 + (position.get("y", -1) - zone["y"]) ** 2) ** 0.5
+        if distance > zone["radius"]:
+            raise ValueError("Move into the marked hazard area before applying its effects.")
+    state = deepcopy(snapshot)
+    entered = state.setdefault("hazardsEntered", {}).setdefault(str(expected_day), [])
+    if zone_id in entered:
+        return state
+    entered.append(zone_id)
+    for key, delta in zone["effects"].items():
+        state["resources"][key] = _clamp(state["resources"].get(key, 0) + delta)
+    state["events"].append({"id": f"hazard-{zone_id}-sol-{expected_day}", "day": expected_day, "kind": "hazard", "text": zone["log"]})
+    state["lastOutcome"] = {"actionId": f"hazard-{zone_id}", "title": zone["name"], "text": zone["log"]}
     return state

@@ -3,6 +3,27 @@
   "destination": "Mars",
   "durationDays": 7,
   "dataNote": "All values and effects in this scenario are illustrative game-balancing values, not NASA operational values or forecasts.",
+  "startingInventory": {"alloy": 0, "regolith": 0, "ice": 0},
+  "starterKits": [
+    {"id": "repair-kit", "name": "Habitat Kit", "inventory": {"alloy": 2}, "description": "Extra alloy for an early outpost build."},
+    {"id": "field-kit", "name": "Field Kit", "inventory": {"regolith": 2}, "description": "Extra regolith collected from the landing zone."},
+    {"id": "science-kit", "name": "Science Kit", "inventory": {"ice": 2}, "description": "An extra ice sample for a future greenhouse."}
+  ],
+  "gatherNodes": [
+    {"id": "landed-crate", "kind": "alloy", "x": 0.16, "y": 0.62, "amount": 4, "label": "Lander salvage"},
+    {"id": "regolith-vein", "kind": "regolith", "x": 0.36, "y": 0.45, "amount": 5, "label": "Regolith deposit"},
+    {"id": "ice-outcrop", "kind": "ice", "x": 0.62, "y": 0.76, "amount": 4, "label": "Shallow ice"}
+  ],
+  "buildCosts": {
+    "solar-array": {"alloy": 2, "regolith": 1},
+    "greenhouse": {"alloy": 2, "regolith": 1, "ice": 1},
+    "life-support": {"alloy": 3, "regolith": 2},
+    "storm-shelter": {"alloy": 2, "regolith": 2}
+  },
+  "hazardZones": [
+    {"id": "dust-front", "name": "Dust front", "x": 0.79, "y": 0.49, "radius": 0.12, "sols": [2, 6], "effects": {"radiationRisk": 4, "crewWellbeing": -2, "power": -2}, "log": "The commander crossed a dust front. The storm cost energy and raised the abstract exposure-risk meter."},
+    {"id": "thermal-shadow", "name": "Thermal shadow", "x": 0.14, "y": 0.48, "radius": 0.11, "sols": [4], "effects": {"power": -3, "crewWellbeing": -1}, "log": "The crew crossed a cold shadow pocket. The training model reduced power and crew comfort."}
+  ],
   "initialResources": {"power": 56, "oxygen": 82, "water": 74, "food": 78, "crewWellbeing": 88, "habitatIntegrity": 92, "radiationRisk": 8, "scienceProgress": 0},
   "buildings": [
     {"id": "habitat", "name": "Habitat", "x": 0.5, "y": 0.53, "kind": "habitat", "status": "online"},
@@ -27,7 +48,7 @@
     {"id": "crew-rest", "title": "Schedule crew rest", "detail": "Use food and mission time to help the crew recover.", "log": "The crew took a rest period and recovered some wellbeing.", "effects": {"food": -3, "crewWellbeing": 9}, "minResource": {"key": "food", "value": 3}},
     {"id": "conserve-and-observe", "title": "Conserve power and observe", "detail": "Keep optional systems quiet and let the crew review the outpost.", "log": "The crew conserved supplies and checked the outpost systems.", "effects": {"crewWellbeing": 1}}
   ],
-  "eventSchedule": {"2": ["dust-on-array", "filter-warning", "rover-route-rockfall"], "4": ["habitat-pressure-drop", "water-recycler-stall", "science-signal"], "6": ["solar-shadow", "crew-fatigue", "soil-sample-contamination"]},
+  "eventSchedule": {"2": ["dust-on-array", "filter-warning", "rover-route-rockfall"], "3": ["regolith-slide"], "4": ["habitat-pressure-drop", "water-recycler-stall", "science-signal"], "5": ["relay-window"], "6": ["solar-shadow", "crew-fatigue", "soil-sample-contamination"], "7": ["final-sample-window"]},
   "events": [
     {"id":"dust-on-array","title":"Dust on the solar array","trigger":"Sol 2 · A dust veil reduces modeled array output.","prerequisites":[{"type":"building","id":"solar-array","status":"online"}],"choices":[
       {"id":"clean-array","title":"Ask the rover to brush the panels","detail":"Spend power and a little crew energy; restore the array branch.","requiresResources":[{"key":"power","minimum":4}],"effects":{"power":-4,"crewWellbeing":-2},"delayedEffects":[{"days":1,"effects":{"power":6},"text":"The rover cleared the array; modeled output recovered."}],"branch":"rover-cleared-array","log":"The rover cleared a narrow path across the array. The crew spent extra energy, but the panels can contribute again."},
@@ -56,6 +77,15 @@
     {"id":"soil-sample-contamination","title":"Soil sample needs a second look","trigger":"Sol 6 · A sample seal may have been compromised.","prerequisites":[{"type":"resource","key":"scienceProgress","minimum":8}],"choices":[
       {"id":"reanalyze-sample","title":"Use the lab kit to check the sample","detail":"Spend power and water for stronger science confidence.","requiresResources":[{"key":"power","minimum":4},{"key":"water","minimum":2}],"effects":{"power":-4,"water":-2,"scienceProgress":16},"delayedEffects":[],"branch":"sample-verified","log":"The crew checked the sample seal and logged a stronger result in the authored science model."},
       {"id":"quarantine-sample","title":"Quarantine it and protect the lab","detail":"Avoid contamination; record less science progress.","effects":{"scienceProgress":4,"crewWellbeing":1},"delayedEffects":[],"branch":"sample-quarantined","log":"The crew quarantined the sample, protected the lab, and recorded a smaller science result."}]}
+    ,{"id":"regolith-slide","title":"The slope gives way","trigger":"Sol 3 · A ridge of loose regolith slips across the marked path to the greenhouse site.","choices":[
+      {"id":"clear-ridge","title":"Use the rover winch to clear a narrow path","detail":"Spend power and crew time now; keep the build site accessible.","requiresResources":[{"key":"power","minimum":4}],"effects":{"power":-4,"crewWellbeing":-1},"delayedEffects":[{"days":1,"effects":{"scienceProgress":4},"text":"The newly cleared ridge exposed a useful soil layer for the survey."}],"branch":"ridge-cleared","log":"The crew opened a narrow route through the slide. It cost energy, but the greenhouse site remains reachable."},
+      {"id":"mark-safe-route","title":"Mark a longer route around the slope","detail":"Keep the crew rested; the detour delays a little science work.","effects":{"crewWellbeing":2},"delayedEffects":[{"days":1,"effects":{"scienceProgress":-2},"text":"The longer route left less time for the soil survey."}],"branch":"ridge-detour","log":"The crew marked a stable detour around the slope. The path is safe, but the survey will take longer."}]},
+    {"id":"relay-window","title":"A narrow relay window","trigger":"Sol 5 · ORBIT predicts a brief communications window. The team can send one useful packet before the signal fades.","choices":[
+      {"id":"powered-relay","title":"Send the full survey packet","detail":"Spend stored power for a stronger remote science review.","requiresResources":[{"key":"power","minimum":5}],"effects":{"power":-5,"scienceProgress":12},"delayedEffects":[{"days":1,"effects":{"scienceProgress":5},"text":"Mission Control’s review returned a follow-up question for the soil team."}],"branch":"full-relay","log":"The full survey reached Mission Control. The stronger science return used power needed by other systems."},
+      {"id":"compressed-relay","title":"Send a small compressed packet","detail":"Save power; receive a smaller science return and keep the rover independent.","effects":{"scienceProgress":5,"crewWellbeing":1},"delayedEffects":[],"branch":"compressed-relay","log":"A compact packet made it through the relay window. The team saved power and kept its local plan."}]},
+    {"id":"final-sample-window","title":"The last sample window","trigger":"Sol 7 · The rover camera spots one last exposed soil layer. The crew has time for one final plan before the flight review.","choices":[
+      {"id":"surface-sample","title":"Collect the final surface sample","detail":"Trade power, water, and crew energy for the strongest science result.","requiresResources":[{"key":"power","minimum":4},{"key":"water","minimum":2}],"effects":{"power":-4,"water":-2,"scienceProgress":16,"crewWellbeing":-3,"radiationRisk":4},"delayedEffects":[],"branch":"final-surface-sample","log":"The crew returned with the final sample. The study gained a strong result; supplies and recovery time were spent."},
+      {"id":"remote-final-scan","title":"Run a remote scan from the safe zone","detail":"Preserve the crew’s surface time and supplies for a smaller science gain.","effects":{"power":-3,"scienceProgress":9,"crewWellbeing":1},"delayedEffects":[],"branch":"final-remote-scan","log":"The rover made a remote scan from the marked safe zone. The science result was smaller, and the crew kept more reserves."}]}
   ],
   "dailyResolution": {"powerBase": -4, "solarGeneration": 9, "lifeSupportPriorityPower": -3, "researchPriorityPower": -5, "lifeSupportPowerUse": -3, "greenhousePowerUse": -2, "shelterPowerUse": -1, "oxygen": -2, "oxygenLowPower": -5, "minimumPowerForOxygen": 8, "lifeSupportOxygenRecovery": 4, "lifeSupportPriorityOxygen": 2, "water": -2, "lifeSupportWaterRecovery": 1, "greenhouseWaterUse": -1, "food": -2, "greenhouseFood": 4, "crewWellbeing": -1, "crewRiskPenaltyThreshold": 40, "crewRiskPenalty": -1, "habitatIntegrity": -1, "radiationRiskDaily": 2, "shelterRiskReduction": 8, "researchScience": 4}
 }

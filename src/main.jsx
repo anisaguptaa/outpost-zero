@@ -1,7 +1,5 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './person1/App.jsx';
-import './person1/styles.css';
-import './person1/immersive.css';
+import Game from './game/Game.jsx';
 
-createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);
+createRoot(document.getElementById('root')).render(<React.StrictMode><Game /></React.StrictMode>);
