@@ -5,6 +5,7 @@ dist/
 .venv/
 backend/.venv/
 backend/.venv*/
+backend/outpost_zero_players.sqlite3
 __pycache__/
 *.py[cod]
 *.log
