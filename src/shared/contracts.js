@@ -4,8 +4,19 @@ export const GAME_CONTRACT_VERSION = '1.0.0';
 
 /** PlayerProfile: { id, callsign, avatarId, createdAt } */
 /** MissionBrief: { id, destination, durationDays, objectives[], crew[] } */
-/** MissionStartRequest: { profile: PlayerProfile, missionId, contractVersion } */
-/** MissionSnapshot (Person 2 response): { missionId, day, resources, buildings, events, status } */
+/** MissionStartRequest: { profile: PlayerProfile, missionId, contractVersion, preparation } */
+/** MissionPreparation (Person 1 → Person 2): { focusId, focusLabel, landingSiteId, landingSiteLabel, payloadIds[], payloadLabels[], cargoRule } */
+/**
+ * MissionSnapshot (Person 2 → Person 1): {
+ *   missionId, sol, elapsedEarthSeconds, resources[], buildings[], crew[],
+ *   objectiveStates[], recentEvents[], decisions[], status, capturedAt
+ * }
+ * ResourceReading: { id, label, value, unit, trend?, sourceKind, sourceId? }
+ * sourceKind is one of `measured`, `derived`, or `fictional-scenario`.
+ * Person 1 displays these values and records them. Person 2 owns simulation rules.
+ */
+/** MissionComplete (Person 2 → Person 1): { status, completedAt, finalSnapshot, objectiveStates, decisions } */
+/** MissionRun (Person 1 save): { id, profileId, missionId, currentSol, status, preparation, latestSnapshot?, logEntries[], learnedScienceIds[], finalReport? } */
 export const MARS_MISSION = {
   id: 'mars-first-light', destination: 'Mars', durationDays: 30,
   objectives: ['Keep the crew safe for 30 sols', 'Bring the habitat online', 'Complete the first soil study'],
