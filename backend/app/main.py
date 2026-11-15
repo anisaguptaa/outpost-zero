@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from .engine import SCENARIO, initial_snapshot, resolve_action
 from .player_api import router as player_router
+from .science_context import get_science_context
 
 app = FastAPI(title="OUTPOST ZERO Mission API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175"], allow_credentials=False, allow_methods=["GET", "POST", "PUT"], allow_headers=["Content-Type"])
@@ -32,6 +33,11 @@ class RestartRequest(BaseModel):
 @app.get("/api/v1/health")
 def health():
     return {"status": "ok", "version": app.version}
+
+
+@app.get("/api/v1/science/context")
+def science_context():
+    return get_science_context()
 
 
 @app.get("/api/v1/content/{destination}")

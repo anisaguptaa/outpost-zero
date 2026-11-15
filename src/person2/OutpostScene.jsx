@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import Phaser from 'phaser';
 
 function drawBuilding(scene, building, selected, onSelect) {
   const x = scene.scale.width * building.x;
@@ -48,9 +47,14 @@ export default function OutpostScene({ snapshot, selectedBuildingId, onSelectBui
   const sceneRef = useRef(null);
   const latestRef = useRef({ snapshot, selectedBuildingId, onSelectBuilding, view });
   latestRef.current = { snapshot, selectedBuildingId, onSelectBuilding, view };
+  const buildings = snapshot?.buildings || [];
 
   useEffect(() => {
     if (!hostRef.current) return undefined;
+    let disposed = false;
+    let game = null;
+    import('phaser').then(({ default: Phaser }) => {
+      if (disposed || !hostRef.current) return;
     class MarsOutpost extends Phaser.Scene {
       constructor() { super('MarsOutpost'); this.walkerX = 0.48; this.walkerY = 0.84; this.target = null; this.jumpStartedAt = null; }
       preload() { this.load.image('mars-rover-reference', 'https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA21723.jpg'); }
@@ -154,11 +158,12 @@ export default function OutpostScene({ snapshot, selectedBuildingId, onSelectBui
         else this.cameras.main.centerOn(this.walkerX * this.scale.width, this.walkerY * this.scale.height - 70);
       }
     }
-    const game = new Phaser.Game({ type: Phaser.AUTO, parent: hostRef.current, width: 960, height: 500, backgroundColor: '#181d28', scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [MarsOutpost], render: { antialias: true, pixelArt: false }, audio: { noAudio: true } });
-    return () => { sceneRef.current = null; game.destroy(true); };
+    game = new Phaser.Game({ type: Phaser.AUTO, parent: hostRef.current, width: 960, height: 500, backgroundColor: '#181d28', scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [MarsOutpost], render: { antialias: true, pixelArt: false }, audio: { noAudio: true } });
+    }).catch(() => { if (!disposed && hostRef.current) hostRef.current.setAttribute('aria-label', 'The Mars scene could not load. Use the structure controls below to continue.'); });
+    return () => { disposed = true; sceneRef.current = null; game?.destroy(true); };
   }, []);
 
   useEffect(() => { sceneRef.current?.paint(); }, [snapshot, selectedBuildingId]);
   useEffect(() => { sceneRef.current?.applyView(view); }, [view]);
-  return <div className={`outpost-canvas view-${view}`} ref={hostRef} aria-label="Walkable 2.5D Mars outpost. Move with WASD or arrow keys; use the view selector to change camera." />;
+  return <><div className={`outpost-canvas view-${view}`} ref={hostRef} aria-label="Walkable 2.5D Mars outpost. Move with WASD or arrow keys; use the view selector to change camera."/><div className="building-shortcuts" role="group" aria-label="Select an outpost structure">{buildings.map((building)=><button type="button" key={building.id} onClick={()=>onSelectBuilding(building.id)} aria-pressed={selectedBuildingId===building.id}>{building.name}<small>{building.status==='online'?'ONLINE':'STANDBY'}</small></button>)}</div></>;
 }

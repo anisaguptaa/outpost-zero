@@ -28,11 +28,11 @@ The mission simulator keeps active sessions in memory for the demo. Person 1's p
 
 ## Current playable slice
 
-Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission planning and two-item training cargo → launch → animated Mars arrival → first surface-walk preparation → interactive outpost simulation. Players can check in with crew, collect field notes, and build a saved flight log. Mission profile, preparation, decisions, and progression persist in browser storage. Outpost snapshots feed Person 1's flight log and final debrief through callbacks; the world simulator also keeps its own local save so it can resume its scenario. The cargo limit and simulation values are fictional training rules, not spacecraft specifications or NASA measurements. The sound preference persists locally and enables short synthesized interface cues; ambient music is not included.
+Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission planning and two-item training cargo → launch → animated Mars arrival → first surface-walk preparation → interactive outpost simulation → event branches → mission debrief. Players can check in with crew, collect field notes, and build a saved flight log. Mission profile, preparation, decisions, and progression persist in browser storage. Outpost snapshots feed Person 1's flight log and final debrief through callbacks; the world simulator also keeps its own local save so it can resume its scenario. The seven-sol Mars mission includes six selectable structures and power, oxygen, water, food, habitat, crew, abstract exposure-risk, and science tracks. Nine authored events can branch across Sols 2, 4, and 6. The debrief reports crew safety, habitat, science objectives, and the player's event branches. The cargo limit and simulation values are fictional training rules, not spacecraft specifications or NASA measurements. The sound preference persists locally and enables short synthesized interface cues; ambient music is not included.
 
 ## Planned game loop
 
-Briefing → prepare the Mars outpost → play a mission sol → respond to an event → see consequences → debrief. The first-sol loop is the integration milestone; Moon mode and longer campaigns follow after it is stable.
+Briefing → prepare the Mars outpost → resolve any event response → choose the crew's regular work → review immediate and delayed consequences → debrief. The scenario uses seed `2026` for a repeatable demo. Moon mode and longer campaigns follow after the Mars loop is stable.
 
 ## Stack
 
@@ -52,7 +52,7 @@ See [docs/PERSON_B_WORK_PLAN.md](docs/PERSON_B_WORK_PLAN.md) for Person 2's scop
 
 ## NASA and partner science resources
 
-The source registry in `src/shared/scienceSources.js` links learning moments to agency resources and records their limits. It does not make live requests yet.
+The story's learning moments link to agency resources and explain their limits. The game also shows an attributed NASA reference card from the mission API, with an offline fact fallback. NASA context is separate from the fictional simulation and does not drive its resource calculations.
 
 - [NASA Mars Trek](https://trek.nasa.gov/mars/) provides Mars terrain and elevation context. Utopia Planitia is where Viking 2 landed in 1976.
 - [NASA Open APIs](https://api.nasa.gov/) can provide dated imagery and rover-photo references. Keep API keys on the backend when live requests are added.
@@ -61,3 +61,10 @@ The source registry in `src/shared/scienceSources.js` links learning moments to 
 - [NASA OSDR](https://osdr.nasa.gov/bio/repo/) and the [Canadian Space Agency food-production toolkit](https://www.asc-csa.gc.ca/eng/youth-educators/toolkits/food-production/) support learning about astronaut health and growing food.
 
 When real data is added, show its source, date, units, and limits. Keep measured observations distinct from calculations and fictional mission values.
+
+## Demo and deployment
+
+- Static fallback: run `npm run dev` without `VITE_OUTPOST_API_URL`; the deterministic mission and offline NASA fact work without FastAPI.
+- API demo: start FastAPI, set `VITE_OUTPOST_API_URL=http://127.0.0.1:8000` in `.env.local`, then start Vite. Check `/api/v1/health` and `/api/v1/science/context`.
+- Build a static demo with `npm run build`, then serve the generated `dist/` folder from the team's chosen static host. No deployment is configured yet.
+- For a repeatable demo, start from a fresh browser save or choose **RESTART MISSION**.

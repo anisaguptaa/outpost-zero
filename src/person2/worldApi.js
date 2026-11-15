@@ -4,6 +4,13 @@ import { availableActions, createInitialSnapshot, resolveAction } from './simula
 const WORLD_SAVE_KEY = 'outpost-zero.world.v1';
 const API_ROOT = (import.meta.env.VITE_OUTPOST_API_URL || '').replace(/\/$/, '');
 const delay = (ms = 100) => new Promise((resolve) => setTimeout(resolve, ms));
+const offlineContext = {
+  kind: 'NASA reference fact', isLiveObservation: false, title: 'A Martian day is called a sol',
+  summary: 'NASA gives the length of a Martian solar day as about 24.6 Earth hours.',
+  source: 'https://science.nasa.gov/mars/facts/', sourceName: 'NASA Science — Mars Facts',
+  dateOrPeriod: 'Planetary reference fact; NASA page', unit: 'Earth hours per Martian solar day', attribution: 'NASA',
+  interpretation: 'This real planetary fact does not set or validate any resource rates in the game model.', offlineFallback: true,
+};
 class ApiError extends Error { constructor(message, status) { super(message); this.status = status; } }
 
 async function request(path, options = {}) {
@@ -40,6 +47,11 @@ export const worldApi = {
       }
     } else await delay(50);
     return saved?.scenarioId === MARS_MISSION.id ? writeLocal({ ...saved, availableActions: availableActions(saved) }) : null;
+  },
+  async getScienceContext() {
+    if (!API_ROOT) return offlineContext;
+    try { return await request('/api/v1/science/context'); }
+    catch { return offlineContext; }
   },
   async performAction(actionId, expectedDay) {
     const saved = readLocal();
