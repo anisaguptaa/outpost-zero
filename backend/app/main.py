@@ -4,9 +4,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from .engine import SCENARIO, initial_snapshot, resolve_action
+from .player_api import router as player_router
 
 app = FastAPI(title="OUTPOST ZERO Mission API", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_credentials=False, allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:5175", "http://127.0.0.1:5175"], allow_credentials=False, allow_methods=["GET", "POST", "PUT"], allow_headers=["Content-Type"])
+app.include_router(player_router)
 missions = {}
 lock = RLock()
 

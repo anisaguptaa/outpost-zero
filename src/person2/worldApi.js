@@ -1,5 +1,5 @@
 import { MARS_MISSION } from '../shared/contracts';
-import { createInitialSnapshot, resolveAction } from './simulation';
+import { availableActions, createInitialSnapshot, resolveAction } from './simulation';
 
 const WORLD_SAVE_KEY = 'outpost-zero.world.v1';
 const API_ROOT = (import.meta.env.VITE_OUTPOST_API_URL || '').replace(/\/$/, '');
@@ -39,7 +39,7 @@ export const worldApi = {
         return writeLocal({ ...saved, adapter: 'local' });
       }
     } else await delay(50);
-    return saved?.scenarioId === MARS_MISSION.id ? saved : null;
+    return saved?.scenarioId === MARS_MISSION.id ? writeLocal({ ...saved, availableActions: availableActions(saved) }) : null;
   },
   async performAction(actionId, expectedDay) {
     const saved = readLocal();

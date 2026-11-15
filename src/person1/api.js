@@ -1,9 +1,26 @@
-// Mock adapter: swap implementation for FastAPI calls later without changing screens.
+// FastAPI is used when configured; local browser storage keeps the mission playable offline.
 import { GAME_CONTRACT_VERSION, MARS_MISSION } from '../shared/contracts';
 const PROFILE_KEY = 'outpost-zero.profile.v1';
+const PROFILE_ID_KEY = 'outpost-zero.profile-id.v1';
 const SAVE_KEY = 'outpost-zero.save.v1';
+const API_ROOT = (import.meta.env.VITE_OUTPOST_API_URL || '').replace(/\/$/, '');
 const wait = (ms = 240) => new Promise(resolve => setTimeout(resolve, ms));
 const read = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } };
+async function requestPlayer(path, options = {}) {
+  const response = await fetch(`${API_ROOT}/api/v1/player${path}`, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    signal: AbortSignal.timeout(2500),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.detail || 'Player record service is unavailable.');
+  return body;
+}
+async function syncPlayer(path, method, value) {
+  if (!API_ROOT) return null;
+  try { return await requestPlayer(path, { method, body: value ? JSON.stringify(value) : undefined }); }
+  catch { return null; }
+}
 const normalizeRun = (run) => ({
   ...run,
   currentSol: Number.isFinite(run.currentSol) ? run.currentSol : 1,
@@ -22,8 +39,23 @@ const normalizeRun = (run) => ({
 });
 
 export const playerApi = {
-  async getProfile() { await wait(80); return read(PROFILE_KEY); },
-  async saveProfile(profile) { await wait(); localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); return profile; },
+  async getProfile() {
+    await wait(80);
+    const local = read(PROFILE_KEY);
+    const profileId = local?.id || localStorage.getItem(PROFILE_ID_KEY);
+    if (!profileId) return local;
+    const remote = await syncPlayer(`/profiles/${encodeURIComponent(profileId)}`, 'GET');
+    const profile = remote?.profile || local;
+    if (profile) { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); localStorage.setItem(PROFILE_ID_KEY, profile.id); }
+    return profile;
+  },
+  async saveProfile(profile) {
+    await wait();
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    localStorage.setItem(PROFILE_ID_KEY, profile.id);
+    await syncPlayer(`/profiles/${encodeURIComponent(profile.id)}`, 'PUT', profile);
+    return profile;
+  },
   async getMissionBrief() { await wait(100); return MARS_MISSION; },
   async startMission(profile, missionId, preparation = {}) {
     await wait(500);
@@ -60,22 +92,37 @@ export const playerApi = {
       contractVersion: GAME_CONTRACT_VERSION,
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(run));
+    await syncPlayer(`/runs/${encodeURIComponent(run.id)}`, 'PUT', run);
     return run;
   },
   async getSave() {
     await wait(60);
-    const saved = read(SAVE_KEY);
+    const local = read(SAVE_KEY);
+    const profile = read(PROFILE_KEY);
+    const profileId = local?.profileId || profile?.id || localStorage.getItem(PROFILE_ID_KEY);
+    const remote = local?.id
+      ? await syncPlayer(`/runs/${encodeURIComponent(local.id)}`, 'GET')
+      : profileId ? await syncPlayer(`/profiles/${encodeURIComponent(profileId)}/latest-run`, 'GET') : null;
+    const remoteRun = remote?.run;
+    const localIsNewer = local && Date.parse(local.updatedAt || local.startedAt || 0) >= Date.parse(remoteRun?.updatedAt || 0);
+    const saved = localIsNewer ? local : remoteRun || local;
     if (!saved || typeof saved !== 'object') return null;
     const migrated = normalizeRun(saved);
     if (JSON.stringify(saved) !== JSON.stringify(migrated)) localStorage.setItem(SAVE_KEY, JSON.stringify(migrated));
     return migrated;
   },
-  async saveMissionRun(run) { await wait(80); localStorage.setItem(SAVE_KEY, JSON.stringify(run)); return run; },
+  async saveMissionRun(run) {
+    await wait(80);
+    localStorage.setItem(SAVE_KEY, JSON.stringify(run));
+    await syncPlayer(`/runs/${encodeURIComponent(run.id)}`, 'PUT', run);
+    return run;
+  },
   async completeMissionRun(run, finalReport) {
     await wait(180);
     const completedAt = new Date().toISOString();
     const completed = { ...run, status: 'complete', finalReport: { ...finalReport, completedAt }, updatedAt: completedAt };
     localStorage.setItem(SAVE_KEY, JSON.stringify(completed));
+    await syncPlayer(`/runs/${encodeURIComponent(completed.id)}`, 'PUT', completed);
     return completed;
   },
 };

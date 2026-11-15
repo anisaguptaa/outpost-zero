@@ -11,7 +11,7 @@ const resourceMeta = [
   ['habitatIntegrity', 'HABITAT', House], ['radiationRisk', 'EXPOSURE RISK', ShieldAlert], ['scienceProgress', 'SCIENCE', FlaskConical],
 ];
 
-export default function MissionWorld({ profile, onBackToLaunch }) {
+export default function MissionWorld({ profile, onBackToLaunch, onSnapshot, onComplete }) {
   const [snapshot, setSnapshot] = useState(null);
   const [selectedBuildingId, setSelectedBuildingId] = useState('solar-array');
   const [selectedActionId, setSelectedActionId] = useState('activate-solar-array');
@@ -19,12 +19,20 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
   const [message, setMessage] = useState('Connecting to the outpost…');
   const [error, setError] = useState('');
   const [showScience, setShowScience] = useState(false);
+  const [view, setView] = useState('third');
+  const [choicePage, setChoicePage] = useState(0);
 
   useEffect(() => {
     let active = true;
     worldApi.getSnapshot().then(async (saved) => {
       const initial = saved || await worldApi.startMission(MARS_MISSION.id, profile);
-      if (active) { setSnapshot(initial); setBusy(false); setMessage('Touchdown confirmed. The crew is at the outpost.'); }
+      if (active) {
+        setSnapshot(initial);
+        if (initial.status === 'active') onSnapshot?.(initial);
+        else onComplete?.(initial);
+        setBusy(false);
+        setMessage('Touchdown confirmed. The crew is at the outpost.');
+      }
     }).catch((cause) => { if (active) { setError(cause.message); setBusy(false); } });
     return () => { active = false; };
   }, []);
@@ -32,6 +40,10 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
   const selectedBuilding = snapshot?.buildings.find((building) => building.id === selectedBuildingId);
   const availableActions = snapshot?.availableActions || [];
   const selectedAction = useMemo(() => availableActions.find((item) => item.id === selectedActionId) || availableActions[0] || null, [availableActions, selectedActionId]);
+  const effectSummary = (action) => Object.entries(action?.effects || {}).map(([key, amount]) => ({ key, amount })).filter((item) => item.amount !== 0);
+  const resourceName = (key) => ({ power: 'POWER', water: 'WATER', food: 'FOOD', oxygen: 'OXYGEN', crewWellbeing: 'CREW', habitatIntegrity: 'HABITAT', radiationRisk: 'EXPOSURE RISK', scienceProgress: 'SCIENCE' }[key] || key.toUpperCase());
+  const pageCount = Math.max(1, Math.ceil(availableActions.length / 4));
+  const visibleActions = availableActions.slice(choicePage * 4, choicePage * 4 + 4);
 
   const chooseBuilding = (buildingId) => {
     setSelectedBuildingId(buildingId);
@@ -46,6 +58,8 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
     try {
       const next = await worldApi.performAction(selectedAction.id, snapshot.day);
       setSnapshot(next);
+      if (next.status === 'active') onSnapshot?.(next);
+      else onComplete?.(next);
       setMessage(next.lastOutcome.text);
       setSelectedActionId(next.availableActions?.[0]?.id || '');
     } catch (cause) { setError(cause.message); }
@@ -55,7 +69,7 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
     setBusy(true); setError('');
     try {
       const next = await worldApi.startMission(MARS_MISSION.id, profile);
-      setSnapshot(next); setSelectedBuildingId('solar-array'); setSelectedActionId(next.availableActions?.[0]?.id || '');
+      setSnapshot(next); onSnapshot?.(next); setSelectedBuildingId('solar-array'); setSelectedActionId(next.availableActions?.[0]?.id || '');
       setMessage('A fresh mission is ready. Choose the first system to bring online.');
     } catch (cause) { setError(cause.message); }
     finally { setBusy(false); }
@@ -84,20 +98,25 @@ export default function MissionWorld({ profile, onBackToLaunch }) {
 
     <section className="world-layout" aria-label="Mars mission">
       <div className="world-main-column">
-        <div className="world-scene-frame"><div className="scene-label"><span>UTOPIA PLANITIA</span><span>SOL {String(snapshot.day).padStart(2, '0')} · {snapshot.day === 1 ? 'TOUCHDOWN' : completed ? 'FLIGHT COMPLETE' : 'OUTPOST ONLINE'}</span></div><OutpostScene snapshot={snapshot} selectedBuildingId={selectedBuildingId} onSelectBuilding={chooseBuilding}/><div className="scene-caption">Tap a structure to inspect it. Your outpost will change as the mission unfolds.</div></div>
+        <div className="world-scene-frame"><div className="scene-label"><span>UTOPIA PLANITIA · SURFACE WALK</span><span>SOL {String(snapshot.day).padStart(2, '0')} · {snapshot.day === 1 ? 'TOUCHDOWN' : completed ? 'FLIGHT COMPLETE' : 'OUTPOST ONLINE'}</span></div><OutpostScene snapshot={snapshot} selectedBuildingId={selectedBuildingId} onSelectBuilding={chooseBuilding} view={view}/><div className="scene-caption"><span>TAP / CLICK THE GROUND TO WALK · WASD / ARROWS TO MOVE · SPACE TO HOP <small>Mars gravity is about 0.38 of Earth’s · NASA · rover panorama is a different Mars site</small></span><div className="view-controls" aria-label="Camera view"><b>CAMERA</b>{[['first','1 · VISOR'],['second','2 · CREW CAM'],['third','3 · FOLLOW']].map(([id,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)} aria-pressed={view===id}>{label}</button>)}</div></div></div>
         <div className="resource-strip" aria-label="Outpost systems, illustrative game values">{resourceMeta.map(([key, label, Icon]) => <div className="resource-chip" key={key}><Icon size={15}/><span>{label}</span><b>{snapshot.resources[key]}<small> GU</small></b><i className={`resource-meter ${key === 'radiationRisk' ? 'is-risk' : ''}`}><i style={{ width: `${snapshot.resources[key]}%`, backgroundColor: key === 'radiationRisk' ? (snapshot.resources[key] >= 40 ? '#d49b4b' : '#82b08a') : undefined }}/></i></div>)}</div>
         <p className="game-value-note">GU = game units. Exposure risk is an abstract training meter, not a radiation dose. All values are simplified for play and are not NASA measurements.</p>
+        {!completed && <section className="command-deck" aria-label="Mission command choices"><div className="command-heading"><span className="command-pulse"/><div><small>INCOMING CREW TRANSMISSION · SOL {String(snapshot.day).padStart(2,'0')}</small><h2>{snapshot.day===1?'“We’re home, Commander. What do we secure first?”':'“Commander, choose what our crew tackles this sol.”'}</h2><p>{snapshot.day===1?'Mika is waiting at the habitat hatch. Compare the likely gains and trade-offs before you give the go-ahead.':'Every sol is a choice about time, supplies, crew health and discovery. Choose the work that matters most today.'}</p></div></div>
+          <div className="story-choice-grid">{visibleActions.map((option,index)=>{const deltas=effectSummary(option);const gains=deltas.filter(item=>item.amount>0);const costs=deltas.filter(item=>item.amount<0);const benefit=gains.length?gains.map(item=>`${resourceName(item.key)} +${item.amount}`).join(' · '):option.setPowerMode==='life-support'?'OXYGEN reserve held steady':option.setPowerMode==='research'?'SCIENCE +4 each sol':'Crew wellbeing holds through daily upkeep';const tradeoff=costs.length?costs.map(item=>`${resourceName(item.key)} ${item.amount}`).join(' · '):option.setPowerMode==='life-support'?'POWER -3 beyond normal daily use':option.setPowerMode==='research'?'POWER -5 beyond normal daily use':option.id==='conserve-and-observe'?'No outpost system comes online this sol':option.buildingId==='solar-array'?'Uses the crew’s first work window':'Uses this sol’s work window';return <button key={option.id} className={`story-choice ${selectedAction?.id===option.id?'selected':''}`} onClick={()=>setSelectedActionId(option.id)} aria-pressed={selectedAction?.id===option.id}><span className="story-choice-index">0{choicePage*4+index+1}</span><b>{option.title}</b><p>{option.detail}</p><span className="choice-outcomes"><small><i>▲</i> ADVANTAGE <strong>{benefit}</strong></small><small><i>◆</i> TRADE-OFF <strong>{tradeoff}</strong></small></span></button>;})}</div>
+          {pageCount>1&&<div className="choice-pager"><span>ORDERS {choicePage*4+1}–{Math.min(choicePage*4+4,availableActions.length)} OF {availableActions.length}</span><button disabled={choicePage===0} onClick={()=>{const next=choicePage-1;setChoicePage(next);setSelectedActionId(availableActions[next*4]?.id||'');}}>PREVIOUS</button><button disabled={choicePage===pageCount-1} onClick={()=>{const next=choicePage+1;setChoicePage(next);setSelectedActionId(availableActions[next*4]?.id||'');}}>MORE ORDERS</button></div>}
+          {selectedAction&&<div className="command-commit"><span><b>COMMANDER’S ORDER</b><small>{selectedAction.title} · the crew will report the result in the flight log.</small></span><button className="world-primary" disabled={busy} onClick={takeAction}>{busy?'CREW IN ACTION…':'GIVE THE ORDER'} <ArrowRight size={16}/></button></div>}
+        </section>}
+        {message && !busy && <p className="world-feedback world-story-feedback" role="status">{message}</p>}{error && <p className="world-error" role="alert">{error}</p>}
         {snapshot.events?.length > 1 && <details className="mission-log"><summary>MISSION LOG · {snapshot.events.length} UPDATES</summary><ol>{snapshot.events.slice().reverse().map((event, index) => <li key={`${event.id}-${index}`}><b>SOL {String(event.day).padStart(2, '0')}</b>{event.text}</li>)}</ol></details>}
       </div>
 
-      <aside className="world-side-panel">
-        <div className="orbit-card"><div className="orbit-avatar">✦</div><div className="orbit-heading"><span>ORBIT · MISSION ADVISOR</span><small>READY TO HELP</small></div><p>{completed ? 'Your seven-sol training flight is complete. Mission Control can review the choices and systems log.' : snapshot.lastOutcome ? 'Good call, Commander. Each choice uses time and supplies. Pick the next step that matters most to your crew.' : 'Select a structure or mission action. I’ll show what the crew expects to change before you commit.'}</p><button onClick={() => setShowScience(!showScience)}><CircleHelp size={13}/> HOW THE GAME MODEL WORKS</button></div>
+      <aside className="world-side-panel world-side-panel-compact">
+        <div className="orbit-card"><div className="orbit-avatar">✦</div><div className="orbit-heading"><span>ORBIT · MISSION ADVISOR</span><small>READY TO HELP</small></div><p>{completed ? 'Your seven-sol training flight is complete. Mission Control can review the choices and systems log.' : snapshot.lastOutcome ? 'Order logged. The resource meters show how the outpost responded; pick a new order in the crew transmission below.' : 'Walk around and inspect the outpost. Then compare the crew’s four orders in the transmission below before you choose.'}</p><button onClick={() => setShowScience(!showScience)}><CircleHelp size={13}/> HOW THE GAME MODEL WORKS</button></div>
 
         <div className="system-inspector"><div className="panel-kicker">{snapshot.day === 1 ? 'OUTPOST SYSTEM' : 'MISSION DECISION'}</div><h2>{snapshot.day === 1 ? selectedBuilding?.name || 'Select a structure' : completed ? 'Flight summary' : 'What should the crew do?'}</h2>
           {snapshot.day === 1 && <><div className={`system-status ${selectedBuilding?.status === 'online' ? 'is-online' : ''}`}><i/>{selectedBuilding?.status === 'online' ? 'ONLINE' : 'STANDBY'}</div><p>{buildingCopy}</p></>}
-          {!completed && <><div className="action-list" role="group" aria-label="Available mission choices">{availableActions.map((option) => <button key={option.id} className={`action-option ${selectedAction?.id === option.id ? 'selected' : ''}`} onClick={() => setSelectedActionId(option.id)} aria-pressed={selectedAction?.id === option.id}><span>{option.title}</span><small>{option.detail}</small></button>)}</div>{selectedAction && <><div className="action-preview"><span>THIS SOL</span><strong>{selectedAction.title.toUpperCase()}</strong><small>{selectedAction.detail}</small></div><button className="world-primary" disabled={busy} onClick={takeAction}>{busy ? 'UPDATING THE OUTPOST…' : 'CONFIRM THIS CHOICE'} <ArrowRight size={16}/></button></>}</>}
           {completed && <div className="mission-complete"><Check size={18}/><span>CREW SAFE · TRAINING FLIGHT FINISHED</span></div>}
-          {error && <p className="world-error" role="alert">{error}</p>}{message && !busy && <p className="world-feedback" role="status">{message}</p>}
+          {error && <p className="world-error" role="alert">{error}</p>}
         </div>
         <div className="crew-card"><div className="panel-kicker">CREW CHANNEL</div><div className="crew-line"><span>👩🏾‍🚀</span><p><b>Sol · Field scientist</b><br/>{snapshot.day === 1 ? 'I’m ready to study the soil once we have the outpost set up.' : completed ? 'Thanks for keeping the crew and our work in mind, Commander.' : 'The nearby soil site is ready when our systems and supplies allow.'}</p></div></div>
         {snapshot.day > 1 && <button className="world-secondary restart-button" onClick={restart} disabled={busy}><RotateCcw size={14}/> RESTART MISSION</button>}

@@ -172,6 +172,20 @@
 .focus-icon{width:40px;height:40px;flex:0 0 auto;color:#ffd0b3;border-color:rgba(255,218,195,.24);background:rgba(255,255,255,.06)}
 .focus-option.selected .focus-icon{color:#ffd1b5;background:rgba(255,146,105,.18);border-color:rgba(255,174,136,.45)}
 .focus-copy{gap:7px}.focus-copy b{font-size:17px;color:#fff3eb;line-height:1.1}.focus-copy small{font-size:11px;line-height:1.45;color:#d4c9ca}
+.focus-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:12px}
+.focus-option{box-sizing:border-box;width:100%;min-width:0;display:grid;grid-template-columns:40px minmax(0,1fr) 20px;align-items:start;gap:12px;min-height:142px;border:1px solid rgba(255,255,255,.17);border-radius:8px;text-align:left;white-space:normal;color:#fff3eb}
+.focus-copy{display:flex;flex-direction:column;min-width:0;gap:8px}.focus-copy b{font-size:16px;line-height:1.25}.focus-copy small{font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.focus-radio{margin:2px 0 0;display:grid;place-items:center}
+.focus-science p{margin:0}
+.prep-purpose{display:flex;align-items:flex-start;gap:10px;margin:0 0 13px;padding:12px 14px;border:1px solid rgba(255,192,132,.2);border-radius:6px;background:rgba(255,192,132,.06);color:#f1dfd6}.prep-purpose>svg{flex:0 0 auto;margin-top:2px;color:#ffc28f}.prep-purpose p{display:flex;flex-direction:column;gap:4px;margin:0;font-size:11px;line-height:1.5}.prep-purpose b{color:#ffd09a;font:700 9px var(--display);letter-spacing:.1em}.prep-purpose span{color:#e6d9d4}.cargo-why{margin:-5px 0 13px;color:#d3c8c6;font-size:12px;line-height:1.55}
+.prep-site-visual{background-image:linear-gradient(180deg,rgba(18,20,28,.08),rgba(18,20,28,.35)),url('https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA21723.jpg');background-size:cover;background-position:center 52%}
+.prep-site-visual:before{background-image:linear-gradient(90deg,rgba(241,190,153,.07) 1px,transparent 1px),linear-gradient(rgba(241,190,153,.07) 1px,transparent 1px);background-size:40px 40px;opacity:.55}
+.prep-map-note:after{content:" · NASA/JPL rover panorama: Perseverance Valley, used as a Mars terrain reference";color:#d1bab2}
+.surface-backdrop{object-fit:cover;object-position:center 58%;filter:brightness(.82) saturate(.82) contrast(1.06)}
+.surface-art-vignette{background:linear-gradient(180deg,rgba(16,17,24,.42),transparent 38%,rgba(18,17,22,.52)),linear-gradient(90deg,rgba(13,14,20,.14),transparent 70%)}
+.surface-art-caption span{max-width:560px;font-size:9px}
+@media(max-width:900px){.focus-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.focus-options{grid-template-columns:1fr}.focus-option{min-height:94px;grid-template-columns:36px minmax(0,1fr) 20px;gap:10px}.focus-copy b{font-size:16px}.focus-copy small{font-size:12px}}
 .focus-radio{width:20px;height:20px;margin-left:auto;color:#211b22}.selected .focus-radio{background:#ffad84;border-color:#ffad84}
 .focus-science{gap:10px;margin-top:13px;padding:11px 13px;background:rgba(255,192,132,.08);border-left:2px solid rgba(255,192,132,.6)}
 .focus-science p{color:#eee1d9;font-size:12px;line-height:1.5}.focus-science p b{color:#ffd09a;font-size:9px;letter-spacing:.1em}.science-pulse{font-size:17px}
@@ -250,3 +264,31 @@
 @media(max-width:500px){.arrival-scene{min-height:650px}.arrival-copy{width:92%;padding:100px 18px 140px}.arrival-copy h2{font-size:58px}.arrival-lander{left:75%;top:52%;transform:translate(-50%,-50%) scale(.64)}.arrival-descent .arrival-lander{animation-name:lander-descent-mobile}.arrival-sequence{left:14px;right:14px;gap:6px;font-size:7px}.arrival-hud{left:14px;top:14px}.arrival-hud>b{font-size:10px}.surface-choice-grid{grid-template-columns:1fr}.surface-choice{min-height:140px}.surface-art-top{left:12px;right:12px;font-size:7px}.surface-habitat{left:66%}.surface-rover{left:27%}.surface-route{left:33%;width:34%}.surface-cadet{left:48%}.surface-mission-body{padding:20px 16px}.surface-task-copy>p{font-size:12px}}
 @keyframes lander-descent-mobile{0%{top:39%;transform:translate(-50%,-50%) scale(.65) rotate(-6deg)}60%{top:56%;transform:translate(-50%,-50%) scale(.65) rotate(1deg)}100%{top:70%;transform:translate(-50%,-50%) scale(.65) rotate(0)}}
 @media(prefers-reduced-motion:reduce){.arrival-scene *,.surface-mission *{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Person 1: let the active mission use the full viewport while keeping its stations as an in-game HUD. */
+.page-5 .topbar,
+.page-5 .site-footer{display:none}
+.page-5 .app-content{max-width:none;min-height:100svh;padding:0}
+.page-5 .mission-experience{box-sizing:border-box;min-height:100svh;padding:clamp(14px,2.2vw,28px) clamp(16px,3.8vw,58px);display:flex;flex-direction:column}
+.page-5 .mission-station{flex:1;min-height:0;display:flex;flex-direction:column}
+.page-5 .arrival-scene,.page-5 .surface-mission{width:100%}
+.page-5 .arrival-scene{flex:1;min-height:min(72vh,760px)}
+.page-5 .mission-world{box-sizing:border-box;width:100%;min-height:calc(100svh - 44px);padding:16px clamp(12px,2vw,32px) 24px}
+.page-5 .world-layout{max-width:none}
+.page-5 .immersive-toggle{margin-left:8px;border-color:rgba(255,255,255,.12);color:#d9d5d9}
+.page-5 .immersive-toggle svg{color:#ffab82}
+.mission-experience:fullscreen{width:100vw;height:100vh;overflow:auto;background:#11131a}
+@media(max-width:680px){
+  .page-5 .mission-experience{padding:10px 12px}
+  .page-5 .arrival-scene{min-height:calc(100svh - 190px)}
+  .page-5 .mission-world{min-height:100svh;padding:12px 0 22px}
+  .page-5 .immersive-toggle{justify-content:center}
+  .page-5 .immersive-toggle span{display:none}
+}
+.citation-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.citation-card{display:flex;align-items:center;gap:10px;min-height:57px;padding:9px 11px;border:1px solid rgba(255,190,135,.24);background:linear-gradient(120deg,rgba(125,76,56,.3),rgba(31,28,35,.48));color:#f2c697}
+.citation-card>div{display:flex;flex-direction:column;gap:3px}
+.citation-card b{font:700 11px var(--display);letter-spacing:.05em;color:#ffe4c8}
+.citation-card span{font-size:9px;color:#c7b9b2}
+.page-5 .mission-sound-toggle{border-color:rgba(255,255,255,.1);color:#d9d5d9}
+.page-5 .mission-sound-toggle svg{color:#ffab82}

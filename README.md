@@ -24,11 +24,11 @@ The game runs with its local browser simulation by default. To run the FastAPI s
 3. Run `uvicorn backend.app.main:app --reload` (API at `http://127.0.0.1:8000`).
 4. Copy `.env.example` to `.env.local` and set `VITE_OUTPOST_API_URL=http://127.0.0.1:8000`.
 
-The API stores sessions in memory for the demo. Restarting the API clears server sessions; browser saves remain available as an offline fallback.
+The mission simulator keeps active sessions in memory for the demo. Person 1's profiles and flight records are stored in a local SQLite file (`backend/outpost_zero_players.sqlite3`, excluded from Git). Browser storage remains the offline fallback if the API is unavailable.
 
 ## Current playable slice
 
-Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission planning and two-item training cargo → launch → animated Mars arrival → first surface-walk preparation → interactive outpost simulation. Players can check in with crew, collect field notes, and build a saved flight log. Mission profile, preparation, and progression persist in browser storage. Person 2's simulation currently keeps its own local world save; the next integration step is to bridge world snapshots and completion reports into Person 1's flight log and debrief. The cargo limit and simulation values are fictional training rules, not spacecraft specifications or NASA measurements. Sound control remains visual only.
+Recruitment → callsign and flight suit selection → crew transmissions and Mars briefing → mission planning and two-item training cargo → launch → animated Mars arrival → first surface-walk preparation → interactive outpost simulation. Players can check in with crew, collect field notes, and build a saved flight log. Mission profile, preparation, decisions, and progression persist in browser storage. Outpost snapshots feed Person 1's flight log and final debrief through callbacks; the world simulator also keeps its own local save so it can resume its scenario. The cargo limit and simulation values are fictional training rules, not spacecraft specifications or NASA measurements. The sound preference persists locally and enables short synthesized interface cues; ambient music is not included.
 
 ## Planned game loop
 
@@ -46,7 +46,7 @@ Briefing → prepare the Mars outpost → play a mission sol → respond to an e
 - **Person 2:** outpost world, buildings, characters, interactions, resource simulation, events, and decisions.
 - `src/person1/` is Person 1's area. `src/person2/` is Person 2's area. `src/shared/contracts.js` contains the shared data shapes.
 
-Person 1 owns app routing and presents Person 2's world after the landing and airlock sequence. The preparation record includes the selected focus, landing-site identifier, and cargo IDs and labels. The current world module uses a separate local simulation save; connecting its snapshots and final report to Person 1's flight record is the next integration task. Snapshot values should include units and identify measured, derived, or fictional-scenario data.
+Person 1 owns app routing and presents Person 2's world after the landing and airlock sequence. The preparation record includes the selected focus, landing-site identifier, and cargo IDs and labels. The world module retains its own simulation save while sending snapshots and completion results to Person 1's flight record and report. Snapshot values should include units and identify measured, derived, or fictional-scenario data.
 
 See [docs/PERSON_B_WORK_PLAN.md](docs/PERSON_B_WORK_PLAN.md) for Person 2's scope and completion criteria.
 
